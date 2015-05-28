@@ -9,10 +9,10 @@ import (
 	"github.com/zvelo/go-signalfx/sfxconfig"
 )
 
-// DataPoints is a DataPoint set
+// DataPoints is a DataPoint list
 type DataPoints struct {
-	data map[string]*DataPoint
-	lock sync.RWMutex
+	data []*DataPoint
+	lock sync.Mutex
 }
 
 // Marshal filters out metrics with empty names, sets a reasonable source on
@@ -22,7 +22,7 @@ func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
 	dps.lock.Lock()
 	defer dps.lock.Unlock()
 
-	filtered := map[string]*DataPoint{}
+	filtered := make([]*DataPoint, len(dps.data))
 
 	for _, dp := range dps.data {
 		if len(dp.Metric) == 0 {
@@ -32,7 +32,7 @@ func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
 		dp.setReasonableSource(config)
 		dp.filterDimensions()
 
-		filtered[dp.Metric] = dp
+		filtered = append(filtered, dp)
 	}
 
 	dps.data = filtered
@@ -49,40 +49,10 @@ func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
 	return proto.Marshal(&ret)
 }
 
-// Reset removes all datapoints from the set
-func (dps *DataPoints) Reset() {
+// Add a new DataPoint to the list
+func (dps *DataPoints) Add(metricType MetricType, metric string, value interface{}, timeStamp time.Time, dimensions Dimensions) {
 	dps.lock.Lock()
 	defer dps.lock.Unlock()
 
-	*dps = DataPoints{}
-}
-
-// Exists returns if the DataPoint identified by metric is in the set
-func (dps *DataPoints) Exists(metric string) bool {
-	dps.lock.RLock()
-	defer dps.lock.RUnlock()
-
-	if dp, ok := dps.data[metric]; ok {
-		if dp.Metric == metric {
-			return true
-		}
-	}
-
-	return false
-}
-
-// Del removes the DataPoint identified by metric
-func (dps *DataPoints) Del(metric string) {
-	dps.lock.Lock()
-	defer dps.lock.Unlock()
-
-	delete(dps.data, metric)
-}
-
-// Set adds or overwrites a DataPoint identified by metric
-func (dps *DataPoints) Set(metricType MetricType, metric string, value interface{}, timeStamp time.Time, dimensions Dimensions) {
-	dps.lock.Lock()
-	defer dps.lock.Unlock()
-
-	dps.data[metric] = NewDataPoint(metricType, metric, value, timeStamp, dimensions)
+	dps.data = append(dps.data, NewDataPoint(metricType, metric, value, timeStamp, dimensions))
 }
