@@ -12,8 +12,8 @@ func (f *Error) Error() string {
 	return fmt.Sprintf("%s: %s", f.Message, f.OriginalError.Error())
 }
 
-// NewError provides a convenient way to create an Error
-func NewError(msg string, err error) *Error {
+// newError provides a convenient way to create an Error
+func newError(msg string, err error) *Error {
 	return &Error{
 		OriginalError: err,
 		Message:       msg,

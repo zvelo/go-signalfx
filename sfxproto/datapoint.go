@@ -62,6 +62,7 @@ func NewDataPoint(metric string, value interface{}, metricType MetricType, times
 	return ret, nil
 }
 
+// DelDimension deletes the dimension that has the given key if it exists
 func (dp *DataPoint) DelDimension(key string) {
 	for i, dim := range dp.Dimensions {
 		if dim.Key == key {
@@ -71,6 +72,8 @@ func (dp *DataPoint) DelDimension(key string) {
 	}
 }
 
+// GetDimension returns the Dimension that matches the given key, or nil if
+// there isn't one
 func (dp *DataPoint) GetDimension(key string) *Dimension {
 	for _, dim := range dp.Dimensions {
 		if dim.Key == key {
@@ -81,6 +84,8 @@ func (dp *DataPoint) GetDimension(key string) *Dimension {
 	return nil
 }
 
+// SetDimension adds a Dimension with the given key and value. If a Dimension
+// already exists with the given key, its value is overwritten.
 func (dp *DataPoint) SetDimension(key, value string) {
 	if dim := dp.GetDimension(key); dim != nil {
 		dim.Value = value

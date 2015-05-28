@@ -50,7 +50,7 @@ func (c *Client) Submit(ctx context.Context, msg *sfxproto.DataPointUploadMessag
 
 	jsonBytes, err := msg.Marshal(c.config)
 	if err != nil {
-		return NewError("Unable to marshal object", err)
+		return newError("Unable to marshal object", err)
 	}
 
 	req, _ := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonBytes))
@@ -76,28 +76,28 @@ func (c *Client) Submit(ctx context.Context, msg *sfxproto.DataPointUploadMessag
 		return ctx.Err()
 	case <-done:
 		if err != nil {
-			return NewError("Unable to POST request", err)
+			return newError("Unable to POST request", err)
 		}
 	}
 
 	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return NewError("Unable to verify response body", err)
+		return newError("Unable to verify response body", err)
 	}
 
 	if resp.StatusCode != 200 {
-		return NewError(string(respBody), fmt.Errorf("invalid status code: %d", resp.StatusCode))
+		return newError(string(respBody), fmt.Errorf("invalid status code: %d", resp.StatusCode))
 	}
 
 	var body string
 	err = json.Unmarshal(respBody, &body)
 	if err != nil {
-		return NewError(string(respBody), err)
+		return newError(string(respBody), err)
 	}
 
 	if body != "OK" {
-		return NewError(body, errors.New("body decode error"))
+		return newError(body, errors.New("body decode error"))
 	}
 
 	return nil
