@@ -1,7 +1,7 @@
 ALL_DIRS=$(shell find . \( -path ./.git \) -prune -o -type d -print)
 GO_PKGS=$(shell go list ./...)
 GO_FILES=$(foreach dir, $(ALL_DIRS), $(wildcard $(dir)/*.go))
-PROTO_FILES=$(sort $(wildcard sfxproto/*.proto))
+PROTO_FILES=$(sort $(wildcard sfproto/*.proto))
 
 ifeq ("$(CIRCLECI)", "true")
 	CI_SERVICE = circle-ci
@@ -10,10 +10,10 @@ endif
 all: test
 
 lint:
-	@golint ./... | grep -v '^sfxproto\/signalfx\.pb\.go:' || true
+	@golint ./... | grep -v '^sfproto\/signalfx\.pb\.go:' || true
 	@go vet ./...
 
-test: $(GO_FILES) sfxproto/signalfx.pb.go
+test: $(GO_FILES) sfproto/signalfx.pb.go
 	go test -v -race ./...
 
 coverage: .acc.out
@@ -25,7 +25,7 @@ clean:
 		./.acc.out \
 		./.coveralls-stamp
 
-.acc.out: $(GO_FILES) sfxproto/signalfx.pb.go
+.acc.out: $(GO_FILES) sfproto/signalfx.pb.go
 	@echo "mode: set" > .acc.out
 	@for pkg in $(GO_PKGS); do \
 		cmd="go test -v -coverprofile=profile.out $$pkg"; \
@@ -45,8 +45,8 @@ clean:
 	fi
 	@touch .coveralls-stamp
 
-sfxproto/signalfx.pb.go: $(PROTO_FILES)
+sfproto/signalfx.pb.go: $(PROTO_FILES)
 	protoc --go_out=. $(PROTO_FILES)
-	@sed -i '/^func.*DataPoint).*String() string/d' sfxproto/signalfx.pb.go
+	@sed -i '/^func.*DataPoint).*String() string/d' sfproto/signalfx.pb.go
 
 .PHONY: all lint test coverage coveralls clean

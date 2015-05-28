@@ -1,4 +1,4 @@
-package sfxproto
+package sfproto
 
 import (
 	"testing"

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package sfxproto;
+package sfproto;
 
 enum MetricType {
     // Numerical: Periodic, instantaneous measurement of some state.

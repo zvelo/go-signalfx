@@ -1,4 +1,4 @@
-package sfxconfig
+package sfconfig
 
 import (
 	"crypto/tls"
@@ -12,9 +12,9 @@ const (
 	// user agent
 	ClientVersion = "0.1.0"
 
-	// DefaultMaxConnections is the maximum idle (keep-alive) connections to
+	// DefaultMaxIdleConnections is the maximum idle (keep-alive) connections to
 	// maintain with the signalfx server.
-	DefaultMaxConnections = 20
+	DefaultMaxIdleConnections = 2
 
 	// DefaultTimeoutDuration is the timeout used for connecting to the signalfx
 	// server, including name resolution, as well as weaiting for headers
@@ -30,7 +30,7 @@ const (
 // Config is used to configure a Client. It should be created with New to have
 // default values automatically set.
 type Config struct {
-	MaxConnections        uint32
+	MaxIdleConnections    uint32
 	TimeoutDuration       time.Duration
 	URL                   string
 	AuthToken             string
@@ -51,7 +51,7 @@ func (c *Config) Clone() *Config {
 func (c *Config) Transport() *http.Transport {
 	return &http.Transport{
 		TLSClientConfig:       &tls.Config{InsecureSkipVerify: c.TLSInsecureSkipVerify},
-		MaxIdleConnsPerHost:   int(c.MaxConnections),
+		MaxIdleConnsPerHost:   int(c.MaxIdleConnections),
 		ResponseHeaderTimeout: c.TimeoutDuration,
 		Dial: func(network, addr string) (net.Conn, error) {
 			return net.DialTimeout(network, addr, c.TimeoutDuration)
@@ -62,9 +62,9 @@ func (c *Config) Transport() *http.Transport {
 // New generates a new Config with default values
 func New() *Config {
 	return &Config{
-		MaxConnections:  DefaultMaxConnections,
-		TimeoutDuration: DefaultTimeoutDuration,
-		URL:             DefaultURL,
-		UserAgent:       DefaultUserAgent,
+		MaxIdleConnections: DefaultMaxIdleConnections,
+		TimeoutDuration:    DefaultTimeoutDuration,
+		URL:                DefaultURL,
+		UserAgent:          DefaultUserAgent,
 	}
 }

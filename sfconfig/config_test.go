@@ -1,4 +1,4 @@
-package sfxconfig
+package sfconfig
 
 import (
 	"crypto/tls"
@@ -13,14 +13,14 @@ func TestConfig(t *testing.T) {
 		c := New()
 
 		Convey("default values should be correct", func() {
-			So(DefaultMaxConnections, ShouldEqual, 20)
+			So(DefaultMaxIdleConnections, ShouldEqual, 2)
 			So(DefaultTimeoutDuration, ShouldEqual, 60*time.Second)
 			So(DefaultURL, ShouldEqual, "https://ingest.signalfx.com/v2/datapoint")
 			So(DefaultUserAgent, ShouldEqual, "go-signalfx/"+ClientVersion)
 		})
 
 		Convey("config should be created with default values", func() {
-			So(c.MaxConnections, ShouldEqual, DefaultMaxConnections)
+			So(c.MaxIdleConnections, ShouldEqual, DefaultMaxIdleConnections)
 			So(c.TimeoutDuration, ShouldEqual, DefaultTimeoutDuration)
 			So(c.URL, ShouldEqual, DefaultURL)
 			So(c.UserAgent, ShouldEqual, DefaultUserAgent)
@@ -29,7 +29,7 @@ func TestConfig(t *testing.T) {
 		Convey("transport should be properly configured", func() {
 			tr := c.Transport()
 			So(tr.TLSClientConfig, ShouldResemble, &tls.Config{InsecureSkipVerify: false})
-			So(tr.MaxIdleConnsPerHost, ShouldEqual, DefaultMaxConnections)
+			So(tr.MaxIdleConnsPerHost, ShouldEqual, DefaultMaxIdleConnections)
 			So(tr.ResponseHeaderTimeout, ShouldEqual, DefaultTimeoutDuration)
 		})
 	})

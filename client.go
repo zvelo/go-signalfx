@@ -8,20 +8,20 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/zvelo/go-signalfx/sfxconfig"
-	"github.com/zvelo/go-signalfx/sfxproto"
+	"github.com/zvelo/go-signalfx/sfconfig"
+	"github.com/zvelo/go-signalfx/sfproto"
 	"golang.org/x/net/context"
 )
 
 // A Client is used to send datapoints to SignalFx
 type Client struct {
-	config *sfxconfig.Config
+	config *sfconfig.Config
 	tr     *http.Transport
 	client *http.Client
 }
 
 // New returns a new Client
-func New(config *sfxconfig.Config) *Client {
+func New(config *sfconfig.Config) *Client {
 	tr := config.Transport()
 
 	return &Client{
@@ -32,7 +32,7 @@ func New(config *sfxconfig.Config) *Client {
 }
 
 // Submit forwards datapoints to SignalFx
-func (c *Client) Submit(ctx context.Context, dp sfxproto.DataPoints) error {
+func (c *Client) Submit(ctx context.Context, dp sfproto.DataPoints) error {
 	jsonBytes, err := dp.Marshal(c.config)
 	if err != nil {
 		return newError("Unable to marshal object", err)

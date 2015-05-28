@@ -1,11 +1,11 @@
-package sfxproto
+package sfproto
 
 import (
 	"fmt"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/zvelo/go-signalfx/sfxconfig"
+	"github.com/zvelo/go-signalfx/sfconfig"
 )
 
 // DataPoints is a DataPoint list
@@ -22,7 +22,7 @@ func NewDataPoints() *DataPoints {
 // Marshal filters out metrics with empty names, sets a reasonable source on
 // each datapoint that doesn't already have a source, filters out dimensions
 // with an empty key or value and then marshals the protobuf to a byte slice.
-func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
+func (dps *DataPoints) Marshal(config *sfconfig.Config) ([]byte, error) {
 	dps.lock.Lock()
 	defer dps.lock.Unlock()
 
