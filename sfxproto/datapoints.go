@@ -14,6 +14,11 @@ type DataPoints struct {
 	lock sync.Mutex
 }
 
+// NewDataPoints creates a new DataPoints object
+func NewDataPoints() *DataPoints {
+	return &DataPoints{}
+}
+
 // Marshal filters out metrics with empty names, sets a reasonable source on
 // each datapoint that doesn't already have a source, filters out dimensions
 // with an empty key or value and then marshals the protobuf to a byte slice.
@@ -49,9 +54,10 @@ func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
 }
 
 // Add a new DataPoint to the list
-func (dps *DataPoints) Add(dataPoint *DataPoint) {
+func (dps *DataPoints) Add(dataPoint *DataPoint) *DataPoints {
 	dps.lock.Lock()
 	defer dps.lock.Unlock()
 
 	dps.data = append(dps.data, dataPoint)
+	return dps
 }
