@@ -43,8 +43,8 @@ func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
 	return proto.Marshal(&ret)
 }
 
-// Clear removes all datapoints from the set
-func (dps *DataPoints) Clear() {
+// Reset removes all datapoints from the set
+func (dps *DataPoints) Reset() {
 	*dps = DataPoints{}
 }
 
