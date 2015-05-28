@@ -12,8 +12,5 @@ func TestDataPoint(t *testing.T) {
 			So(massageKey("hello"), ShouldEqual, "hello")
 			So(massageKey(".hello:bob1_&"), ShouldEqual, "_hello_bob1__")
 		})
-
-		Convey("setting values should work", func() {
-		})
 	})
 }
