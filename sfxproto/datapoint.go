@@ -28,9 +28,6 @@ func (dp *DataPoint) setReasonableSource(config *sfxconfig.Config) {
 		return
 	}
 
-	config.Lock()
-	defer config.Unlock()
-
 	for _, sourceName := range config.DimensionSources {
 		for _, dimension := range dp.Dimensions {
 			if sourceName == dimension.Key && len(dimension.Value) > 0 {
@@ -45,11 +42,12 @@ func (dp *DataPoint) setReasonableSource(config *sfxconfig.Config) {
 }
 
 // NewDataPoint creates a new datapoint
-func NewDataPoint(metric string, value interface{}, metricType MetricType) *DataPoint {
+func NewDataPoint(metricType MetricType, metric string, value interface{}, dimensions Dimensions) *DataPoint {
 	// TODO(jrubin) what about Source?
 	ret := &DataPoint{
 		Metric:     metric,
 		MetricType: metricType,
+		Dimensions: dimensions.Clone(),
 	}
 
 	if err := ret.SetValue(value); err != nil {
@@ -57,40 +55,6 @@ func NewDataPoint(metric string, value interface{}, metricType MetricType) *Data
 	}
 
 	return ret
-}
-
-// DelDimension deletes the dimension that has the given key if it exists
-func (dp *DataPoint) DelDimension(key string) {
-	for i, dim := range dp.Dimensions {
-		if dim.Key == key {
-			dp.Dimensions = append(dp.Dimensions[:i], dp.Dimensions[i+1:]...)
-			return
-		}
-	}
-}
-
-// GetDimension returns the Dimension that matches the given key, or nil if
-// there isn't one
-func (dp *DataPoint) GetDimension(key string) *Dimension {
-	for _, dim := range dp.Dimensions {
-		if dim.Key == key {
-			return dim
-		}
-	}
-
-	return nil
-}
-
-// SetDimension adds a Dimension with the given key and value. If a Dimension
-// already exists with the given key, its value is overwritten.
-func (dp *DataPoint) SetDimension(key, value string) *DataPoint {
-	if dim := dp.GetDimension(key); dim != nil {
-		dim.Value = value
-		return dp
-	}
-
-	dp.Dimensions = append(dp.Dimensions, NewDimension(key, value))
-	return dp
 }
 
 // SetValue sets the datapoint value datum correctly for all integer, float and

@@ -13,13 +13,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-const (
-	// tokenHeaderName is the header key for the auth token in the HTTP request
-	tokenHeaderName = "X-SF-TOKEN"
-
-	contentType = "application/x-protobuf"
-)
-
 // A Client is used to send datapoints to SignalFx
 type Client struct {
 	config *sfxconfig.Config
@@ -34,7 +27,7 @@ func New(config *sfxconfig.Config) *Client {
 	tr := config.Transport()
 
 	return &Client{
-		config: config,
+		config: config.Clone(),
 		tr:     tr,
 		client: &http.Client{Transport: tr},
 	}
@@ -42,23 +35,17 @@ func New(config *sfxconfig.Config) *Client {
 
 // Submit forwards datapoints to SignalFx
 func (c *Client) Submit(ctx context.Context, dp sfxproto.DataPoints) error {
-	c.config.Lock()
-	endpoint := c.config.URL
-	userAgent := c.config.UserAgent
-	authToken := c.config.AuthToken
-	c.config.Unlock()
-
 	jsonBytes, err := dp.Marshal(c.config)
 	if err != nil {
 		return newError("Unable to marshal object", err)
 	}
 
-	req, _ := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonBytes))
+	req, _ := http.NewRequest("POST", c.config.URL, bytes.NewBuffer(jsonBytes))
 	req.Header = http.Header{
-		tokenHeaderName: {authToken},
-		"Content-Type":  {contentType},
-		"User-Agent":    {userAgent},
-		"Connection":    {"Keep-Alive"},
+		"User-Agent":   {c.config.UserAgent},
+		"X-SF-TOKEN":   {c.config.AuthToken},
+		"Connection":   {"Keep-Alive"},
+		"Content-Type": {"application/x-protobuf"},
 	}
 
 	var resp *http.Response
@@ -91,14 +78,15 @@ func (c *Client) Submit(ctx context.Context, dp sfxproto.DataPoints) error {
 	}
 
 	var body string
-	err = json.Unmarshal(respBody, &body)
-	if err != nil {
+	if err = json.Unmarshal(respBody, &body); err != nil {
 		return newError(string(respBody), err)
 	}
 
 	if body != "OK" {
 		return newError(body, errors.New("body decode error"))
 	}
+
+	// TODO(jrubin) dp.Reset()?
 
 	return nil
 }

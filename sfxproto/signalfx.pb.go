@@ -24,18 +24,16 @@ var _ = proto.Marshal
 type MetricType int32
 
 const (
-	// *
 	// Numerical: Periodic, instantaneous measurement of some state.
 	MetricType_GAUGE MetricType = 0
-	// *
 	// Numerical: Count of occurrences. Generally non-negative integers.
 	MetricType_COUNTER MetricType = 1
-	// *
-	// String: Used for non-continuous quantities (that is, measurements where there is a fixed
-	// set of meaningful values). This is essentially a special case of gauge.
+	// String: Used for non-continuous quantities (that is, measurements where
+	// there is a fixed set of meaningful values). This is essentially a special
+	// case of gauge.
 	MetricType_ENUM MetricType = 2
-	// *
-	// Tracks a value that increases over time, where only the difference is important.
+	// Tracks a value that increases over time, where only the difference is
+	// important.
 	MetricType_CUMULATIVE_COUNTER MetricType = 3
 )
 

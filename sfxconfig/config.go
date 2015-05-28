@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -39,18 +38,13 @@ type Config struct {
 	DefaultSource         string
 	TLSInsecureSkipVerify bool
 	DimensionSources      []string
-	lock                  sync.Mutex
 }
 
-// Lock must be called before modifying any data after config has been used to
-// create a new signalfx.Client
-func (c *Config) Lock() {
-	c.lock.Lock()
-}
-
-// Unlock must be called for every time Lock is called
-func (c *Config) Unlock() {
-	c.lock.Unlock()
+// Clone makes a deep copy of a Config
+func (c *Config) Clone() *Config {
+	ret := *c
+	copy(ret.DimensionSources, c.DimensionSources)
+	return &ret
 }
 
 // Transport returns an http.Transport configured according to Config
