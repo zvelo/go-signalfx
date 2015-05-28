@@ -42,13 +42,16 @@ func (dp *DataPoint) setReasonableSource(config *sfxconfig.Config) {
 }
 
 // NewDataPoint creates a new datapoint
-func NewDataPoint(metricType MetricType, metric string, value interface{}, dimensions Dimensions) *DataPoint {
+func NewDataPoint(metricType MetricType, metric string, value interface{}, timeStamp time.Time, dimensions Dimensions) *DataPoint {
 	// TODO(jrubin) what about Source?
+
 	ret := &DataPoint{
 		Metric:     metric,
 		MetricType: metricType,
 		Dimensions: dimensions.Clone(),
 	}
+
+	ret.SetTime(timeStamp)
 
 	if err := ret.SetValue(value); err != nil {
 		return nil
