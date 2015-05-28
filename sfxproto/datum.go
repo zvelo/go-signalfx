@@ -3,14 +3,14 @@ package sfxproto
 import "fmt"
 
 // NewDatum returns a new Datum object with the value properly set
-func NewDatum(val interface{}) (*Datum, error) {
+func NewDatum(val interface{}) *Datum {
 	ret := &Datum{}
 
 	if err := ret.Set(val); err != nil {
-		return nil, err
+		return nil
 	}
 
-	return ret, nil
+	return ret
 }
 
 // Set sets the datum value correctly for all integer, float and string types.
@@ -46,7 +46,7 @@ func (d *Datum) Set(val interface{}) error {
 	case string:
 		d.StrValue = tval
 	default:
-		return fmt.Errorf("illegal type")
+		return fmt.Errorf("illegal value type")
 	}
 
 	return nil

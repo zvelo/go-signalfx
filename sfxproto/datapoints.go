@@ -7,13 +7,18 @@ import (
 	"github.com/zvelo/go-signalfx/sfxconfig"
 )
 
+// DataPoints is a DataPoint set
+type DataPoints struct {
+	data map[string]*DataPoint
+}
+
 // Marshal filters out metrics with empty names, sets a reasonable source on
 // each datapoint that doesn't already have a source, filters out dimensions
 // with an empty key or value and then marshals the protobuf to a byte slice.
-func (msg *DataPointUploadMessage) Marshal(config *sfxconfig.Config) ([]byte, error) {
-	ret := make([]*DataPoint, 0, len(msg.Datapoints))
+func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
+	filtered := map[string]*DataPoint{}
 
-	for _, dp := range msg.Datapoints {
+	for _, dp := range dps.data {
 		if len(dp.Metric) == 0 {
 			continue
 		}
@@ -21,14 +26,47 @@ func (msg *DataPointUploadMessage) Marshal(config *sfxconfig.Config) ([]byte, er
 		dp.setReasonableSource(config)
 		dp.filterDimensions()
 
-		ret = append(ret, dp)
+		filtered[dp.Metric] = dp
 	}
 
-	msg.Datapoints = ret
+	dps.data = filtered
 
-	if len(msg.Datapoints) == 0 {
+	if len(filtered) == 0 {
 		return nil, fmt.Errorf("nothing to marshal")
 	}
 
-	return proto.Marshal(msg)
+	ret := DataPointUploadMessage{}
+	for _, dp := range filtered {
+		ret.Datapoints = append(ret.Datapoints, dp)
+	}
+
+	return proto.Marshal(&ret)
+}
+
+// Clear removes all datapoints from the set
+func (dps *DataPoints) Clear() {
+	*dps = DataPoints{}
+}
+
+// Get returns the DataPoint identified by metric
+func (dps *DataPoints) Get(metric string) *DataPoint {
+	if dp, ok := dps.data[metric]; ok {
+		if dp.Metric == metric {
+			return dp
+		}
+	}
+
+	return nil
+}
+
+// Del removes the DataPoint identified by metric
+func (dps *DataPoints) Del(metric string) {
+	delete(dps.data, metric)
+}
+
+// Set adds or overwrites a DataPoint identified by metric
+func (dps *DataPoints) Set(metric string, value interface{}, metricType MetricType) *DataPoint {
+	dp := NewDataPoint(metric, value, metricType)
+	dps.data[metric] = dp
+	return dp
 }

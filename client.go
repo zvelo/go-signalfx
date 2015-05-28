@@ -41,14 +41,14 @@ func New(config *sfxconfig.Config) *Client {
 }
 
 // Submit forwards datapoints to SignalFx
-func (c *Client) Submit(ctx context.Context, msg *sfxproto.DataPointUploadMessage) error {
+func (c *Client) Submit(ctx context.Context, dp sfxproto.DataPoints) error {
 	c.config.Lock()
 	endpoint := c.config.URL
 	userAgent := c.config.UserAgent
 	authToken := c.config.AuthToken
 	c.config.Unlock()
 
-	jsonBytes, err := msg.Marshal(c.config)
+	jsonBytes, err := dp.Marshal(c.config)
 	if err != nil {
 		return newError("Unable to marshal object", err)
 	}

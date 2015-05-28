@@ -13,7 +13,6 @@ It has these top-level messages:
 	Dimension
 	DataPoint
 	DataPointUploadMessage
-	PointValue
 */
 package sfxproto
 
@@ -113,22 +112,6 @@ func (*DataPointUploadMessage) ProtoMessage()    {}
 func (m *DataPointUploadMessage) GetDatapoints() []*DataPoint {
 	if m != nil {
 		return m.Datapoints
-	}
-	return nil
-}
-
-type PointValue struct {
-	Timestamp int64  `protobuf:"varint,3,opt,name=timestamp" json:"timestamp,omitempty"`
-	Value     *Datum `protobuf:"bytes,4,opt,name=value" json:"value,omitempty"`
-}
-
-func (m *PointValue) Reset()         { *m = PointValue{} }
-func (m *PointValue) String() string { return proto.CompactTextString(m) }
-func (*PointValue) ProtoMessage()    {}
-
-func (m *PointValue) GetValue() *Datum {
-	if m != nil {
-		return m.Value
 	}
 	return nil
 }

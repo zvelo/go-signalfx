@@ -45,21 +45,18 @@ func (dp *DataPoint) setReasonableSource(config *sfxconfig.Config) {
 }
 
 // NewDataPoint creates a new datapoint
-func NewDataPoint(metric string, value interface{}, metricType MetricType, timestamp time.Time) (*DataPoint, error) {
+func NewDataPoint(metric string, value interface{}, metricType MetricType) *DataPoint {
+	// TODO(jrubin) what about Source?
 	ret := &DataPoint{
-		// Source:
 		Metric:     metric,
 		MetricType: metricType,
-		// Dimensions: dimensions,
 	}
 
 	if err := ret.SetValue(value); err != nil {
-		return nil, err
+		return nil
 	}
 
-	ret.SetTime(timestamp)
-
-	return ret, nil
+	return ret
 }
 
 // DelDimension deletes the dimension that has the given key if it exists
@@ -86,21 +83,21 @@ func (dp *DataPoint) GetDimension(key string) *Dimension {
 
 // SetDimension adds a Dimension with the given key and value. If a Dimension
 // already exists with the given key, its value is overwritten.
-func (dp *DataPoint) SetDimension(key, value string) {
+func (dp *DataPoint) SetDimension(key, value string) *DataPoint {
 	if dim := dp.GetDimension(key); dim != nil {
 		dim.Value = value
-		return
+		return dp
 	}
 
 	dp.Dimensions = append(dp.Dimensions, NewDimension(key, value))
+	return dp
 }
 
 // SetValue sets the datapoint value datum correctly for all integer, float and
 // string types. If another type is passed in, an error is returned.
 func (dp *DataPoint) SetValue(val interface{}) error {
-	var err error
-	dp.Value, err = NewDatum(val)
-	return err
+	dp.Value = &Datum{}
+	return dp.Value.Set(val)
 }
 
 func (dp *DataPoint) filterDimensions() {
