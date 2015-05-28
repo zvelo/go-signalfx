@@ -3,7 +3,6 @@ package sfxproto
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/zvelo/go-signalfx/sfxconfig"
@@ -50,9 +49,9 @@ func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
 }
 
 // Add a new DataPoint to the list
-func (dps *DataPoints) Add(metricType MetricType, metric string, value interface{}, timeStamp time.Time, dimensions Dimensions) {
+func (dps *DataPoints) Add(dataPoint *DataPoint) {
 	dps.lock.Lock()
 	defer dps.lock.Unlock()
 
-	dps.data = append(dps.data, NewDataPoint(metricType, metric, value, timeStamp, dimensions))
+	dps.data = append(dps.data, dataPoint)
 }
