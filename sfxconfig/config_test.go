@@ -13,14 +13,14 @@ func TestConfig(t *testing.T) {
 		c := New()
 
 		Convey("default values should be correct", func() {
-			So(DefaultDrainingThreads, ShouldEqual, 20)
+			So(DefaultMaxConnections, ShouldEqual, 20)
 			So(DefaultTimeoutDuration, ShouldEqual, 60*time.Second)
 			So(DefaultURL, ShouldEqual, "https://ingest.signalfx.com/v2/datapoint")
 			So(DefaultUserAgent, ShouldEqual, "go-signalfx/"+ClientVersion)
 		})
 
 		Convey("config should be created with default values", func() {
-			So(c.DrainingThreads, ShouldEqual, DefaultDrainingThreads)
+			So(c.MaxConnections, ShouldEqual, DefaultMaxConnections)
 			So(c.TimeoutDuration, ShouldEqual, DefaultTimeoutDuration)
 			So(c.URL, ShouldEqual, DefaultURL)
 			So(c.UserAgent, ShouldEqual, DefaultUserAgent)
@@ -29,7 +29,7 @@ func TestConfig(t *testing.T) {
 		Convey("transport should be properly configured", func() {
 			tr := c.Transport()
 			So(tr.TLSClientConfig, ShouldResemble, &tls.Config{InsecureSkipVerify: false})
-			So(tr.MaxIdleConnsPerHost, ShouldEqual, DefaultDrainingThreads)
+			So(tr.MaxIdleConnsPerHost, ShouldEqual, DefaultMaxConnections)
 			So(tr.ResponseHeaderTimeout, ShouldEqual, DefaultTimeoutDuration)
 		})
 	})

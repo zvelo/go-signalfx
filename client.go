@@ -22,8 +22,6 @@ type Client struct {
 
 // New returns a new Client
 func New(config *sfxconfig.Config) *Client {
-	// TODO(jrubin) validate the config?
-
 	tr := config.Transport()
 
 	return &Client{
@@ -85,8 +83,6 @@ func (c *Client) Submit(ctx context.Context, dp sfxproto.DataPoints) error {
 	if body != "OK" {
 		return newError(body, errors.New("body decode error"))
 	}
-
-	// TODO(jrubin) dp.Reset()?
 
 	return nil
 }
