@@ -1,4 +1,4 @@
-package sfconfig
+package sfxconfig
 
 import (
 	"crypto/tls"

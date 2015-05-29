@@ -1,4 +1,4 @@
-package sfproto
+package sfxproto
 
 import "github.com/gogo/protobuf/proto"
 

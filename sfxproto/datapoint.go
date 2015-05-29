@@ -1,4 +1,4 @@
-package sfproto
+package sfxproto
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/zvelo/go-signalfx/sfconfig"
+	"github.com/zvelo/go-signalfx/sfxconfig"
 )
 
 func (dp *DataPoint) String() string {
@@ -23,7 +23,7 @@ func (dp *DataPoint) SetTime(t time.Time) {
 	dp.Timestamp = t.UnixNano() / int64(time.Millisecond)
 }
 
-func (dp *DataPoint) setReasonableSource(config *sfconfig.Config) {
+func (dp *DataPoint) setReasonableSource(config *sfxconfig.Config) {
 	if len(dp.Source) > 0 {
 		return
 	}
