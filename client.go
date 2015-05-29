@@ -3,8 +3,6 @@ package signalfx
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -35,7 +33,7 @@ func New(config *sfxconfig.Config) *Client {
 func (c *Client) Submit(ctx context.Context, dp sfxproto.DataPoints) error {
 	jsonBytes, err := dp.Marshal(c.config)
 	if err != nil {
-		return newError("Unable to marshal object", err)
+		return ErrMarshal(err)
 	}
 
 	req, _ := http.NewRequest("POST", c.config.URL, bytes.NewBuffer(jsonBytes))
@@ -58,30 +56,30 @@ func (c *Client) Submit(ctx context.Context, dp sfxproto.DataPoints) error {
 	case <-ctx.Done():
 		c.tr.CancelRequest(req)
 		<-done // wait for the request to be cancelled
-		return ctx.Err()
+		return ErrContext(ctx.Err())
 	case <-done:
 		if err != nil {
-			return newError("Unable to POST request", err)
+			return ErrPost(err)
 		}
 	}
 
 	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return newError("Unable to verify response body", err)
+		return ErrResponse(err)
 	}
 
 	if resp.StatusCode != 200 {
-		return newError(string(respBody), fmt.Errorf("invalid status code: %d", resp.StatusCode))
+		return &ErrStatus{respBody, resp.StatusCode}
 	}
 
 	var body string
 	if err = json.Unmarshal(respBody, &body); err != nil {
-		return newError(string(respBody), err)
+		return &ErrJSON{respBody}
 	}
 
 	if body != "OK" {
-		return newError(body, errors.New("body decode error"))
+		return &ErrInvalidBody{body}
 	}
 
 	return nil

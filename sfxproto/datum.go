@@ -2,6 +2,12 @@ package sfxproto
 
 import "fmt"
 
+var (
+	// ErrIllegalType is returned when trying to set the Datum value using an
+	// unsupported type
+	ErrIllegalType = fmt.Errorf("illegal value type")
+)
+
 // NewDatum returns a new Datum object with the value properly set
 func NewDatum(val interface{}) *Datum {
 	ret := &Datum{}
@@ -46,7 +52,7 @@ func (d *Datum) Set(val interface{}) error {
 	case string:
 		d.StrValue = tval
 	default:
-		return fmt.Errorf("illegal value type")
+		return ErrIllegalType
 	}
 
 	return nil

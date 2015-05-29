@@ -7,6 +7,12 @@ import (
 	"unicode"
 )
 
+var (
+	// ErrDuplicatedDimension is returned if more than one dimension has the
+	// same key
+	ErrDuplicatedDimension = fmt.Errorf("found duplicated dimension")
+)
+
 func (dp *DataPoint) String() string {
 	return fmt.Sprintf("DP[%s\t%s\t%s\t%d\t%s]", dp.Metric, dp.Dimensions, dp.Value, dp.MetricType, dp.Time().String())
 }
@@ -54,7 +60,7 @@ func (dp *DataPoint) filterDimensions() error {
 
 		for j := i + 1; j < len(dp.Dimensions); j++ {
 			if dimension.Key == dp.Dimensions[j].Key {
-				return fmt.Errorf("found duplicated dimension")
+				return ErrDuplicatedDimension
 			}
 		}
 

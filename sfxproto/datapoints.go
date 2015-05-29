@@ -8,6 +8,12 @@ import (
 	"github.com/zvelo/go-signalfx/sfxconfig"
 )
 
+var (
+	// ErrMarshalNoData is returned when marshaling a DataPoints and it has no
+	// DataPoint values
+	ErrMarshalNoData = fmt.Errorf("no data to marshal")
+)
+
 // DataPoints is a DataPoint list
 type DataPoints struct {
 	data []*DataPoint
@@ -42,7 +48,7 @@ func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
 	dps.data = filtered
 
 	if len(filtered) == 0 {
-		return nil, fmt.Errorf("nothing to marshal")
+		return nil, ErrMarshalNoData
 	}
 
 	ret := DataPointUploadMessage{}
