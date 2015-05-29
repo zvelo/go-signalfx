@@ -35,16 +35,13 @@ type Config struct {
 	URL                   string
 	AuthToken             string
 	UserAgent             string
-	DefaultSource         string
 	TLSInsecureSkipVerify bool
-	DimensionSources      []string
 }
 
 // Clone makes a deep copy of a Config
 func (c *Config) Clone() *Config {
-	ret := *c
-	copy(ret.DimensionSources, c.DimensionSources)
-	return &ret
+	// there are no fields, presently, that require any spacial handling
+	return &(*c)
 }
 
 // Transport returns an http.Transport configured according to Config

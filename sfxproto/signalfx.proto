@@ -31,7 +31,7 @@ message Dimension {
 }
 
 message DataPoint {
-  string             source     = 1;
+  // source, field 1, was deprecated, so start at field 2
   string             metric     = 2;
   int64              timestamp  = 3;
   Datum              value      = 4;

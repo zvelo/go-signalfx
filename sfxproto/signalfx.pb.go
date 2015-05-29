@@ -74,7 +74,7 @@ func (m *Dimension) String() string { return proto.CompactTextString(m) }
 func (*Dimension) ProtoMessage()    {}
 
 type DataPoint struct {
-	Source     string       `protobuf:"bytes,1,opt,name=source" json:"source,omitempty"`
+	// source, field 1, was deprecated, so start at field 2
 	Metric     string       `protobuf:"bytes,2,opt,name=metric" json:"metric,omitempty"`
 	Timestamp  int64        `protobuf:"varint,3,opt,name=timestamp" json:"timestamp,omitempty"`
 	Value      *Datum       `protobuf:"bytes,4,opt,name=value" json:"value,omitempty"`

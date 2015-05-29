@@ -5,8 +5,6 @@ import (
 	"strings"
 	"time"
 	"unicode"
-
-	"github.com/zvelo/go-signalfx/sfxconfig"
 )
 
 func (dp *DataPoint) String() string {
@@ -23,28 +21,8 @@ func (dp *DataPoint) SetTime(t time.Time) {
 	dp.Timestamp = t.UnixNano() / int64(time.Millisecond)
 }
 
-func (dp *DataPoint) setReasonableSource(config *sfxconfig.Config) {
-	if len(dp.Source) > 0 {
-		return
-	}
-
-	for _, sourceName := range config.DimensionSources {
-		for _, dimension := range dp.Dimensions {
-			if sourceName == dimension.Key && len(dimension.Value) > 0 {
-				dp.Source = dimension.Value
-				return
-			}
-		}
-	}
-
-	// TODO(jrubin) what if this is empty?
-	dp.Source = config.DefaultSource
-}
-
 // NewDataPoint creates a new datapoint
 func NewDataPoint(metricType MetricType, metric string, value interface{}, timeStamp time.Time, dimensions Dimensions) *DataPoint {
-	// TODO(jrubin) what about Source?
-
 	ret := &DataPoint{
 		Metric:     metric,
 		MetricType: metricType,
@@ -67,11 +45,17 @@ func (dp *DataPoint) SetValue(val interface{}) error {
 	return dp.Value.Set(val)
 }
 
-func (dp *DataPoint) filterDimensions() {
+func (dp *DataPoint) filterDimensions() error {
 	ret := make([]*Dimension, 0, len(dp.Dimensions))
-	for _, dimension := range dp.Dimensions {
+	for i, dimension := range dp.Dimensions {
 		if dimension.Key == "" || dimension.Value == "" {
 			continue
+		}
+
+		for j := i + 1; j < len(dp.Dimensions); j++ {
+			if dimension.Key == dp.Dimensions[j].Key {
+				return fmt.Errorf("found duplicated dimension")
+			}
 		}
 
 		dimension.Key = massageKey(dimension.Key)
@@ -79,6 +63,8 @@ func (dp *DataPoint) filterDimensions() {
 	}
 
 	dp.Dimensions = ret
+
+	return nil
 }
 
 func massageKey(str string) string {

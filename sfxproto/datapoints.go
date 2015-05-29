@@ -19,9 +19,8 @@ func NewDataPoints() *DataPoints {
 	return &DataPoints{}
 }
 
-// Marshal filters out metrics with empty names, sets a reasonable source on
-// each datapoint that doesn't already have a source, filters out dimensions
-// with an empty key or value and then marshals the protobuf to a byte slice.
+// Marshal filters out metrics with empty names, filters out dimensions with an
+// empty key or value and then marshals the protobuf to a byte slice.
 func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
 	dps.lock.Lock()
 	defer dps.lock.Unlock()
@@ -33,8 +32,9 @@ func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
 			continue
 		}
 
-		dp.setReasonableSource(config)
-		dp.filterDimensions()
+		if err := dp.filterDimensions(); err != nil {
+			return nil, err
+		}
 
 		filtered = append(filtered, dp)
 	}
