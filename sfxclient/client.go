@@ -31,6 +31,10 @@ func New(config *sfxconfig.Config) *Client {
 
 // Submit forwards raw datapoints to SignalFx
 func (c *Client) Submit(ctx context.Context, dps *sfxproto.DataPoints) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
 	jsonBytes, err := dps.Marshal(c.config)
 	if err != nil {
 		return ErrMarshal(err)
