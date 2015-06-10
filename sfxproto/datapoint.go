@@ -46,7 +46,7 @@ func NewDataPoint(metricType MetricType, metric string, value interface{}, dimen
 
 	ret.SetTime(time.Now())
 
-	if err := ret.SetValue(value); err != nil {
+	if err := ret.Set(value); err != nil {
 		return nil, err
 	}
 
@@ -65,9 +65,9 @@ func NewCounter(metricName string, value interface{}, defaultDims Dimensions) (*
 	return NewDataPoint(MetricType_COUNTER, metricName, value, defaultDims)
 }
 
-// SetValue sets the datapoint value datum correctly for all integer, float and
+// Set sets the datapoint value datum correctly for all integer, float and
 // string types. If another type is passed in, an error is returned.
-func (dp *DataPoint) SetValue(val interface{}) error {
+func (dp *DataPoint) Set(val interface{}) error {
 	dp.Value = &Datum{}
 	return dp.Value.Set(val)
 }

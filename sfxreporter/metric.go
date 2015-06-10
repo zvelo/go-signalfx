@@ -7,6 +7,8 @@ import (
 	"github.com/zvelo/go-signalfx/sfxproto"
 )
 
+// TODO(jrubin) make thread safe?
+
 type Getter interface {
 	Get() interface{}
 }
@@ -44,7 +46,7 @@ func NewMetric(dp *sfxproto.DataPoint, val interface{}) (*Metric, error) {
 	if get, ok := val.(Getter); ok {
 		ret.get = get
 	} else {
-		if err := ret.dp.SetValue(val); err != nil {
+		if err := ret.Set(val); err != nil {
 			return nil, err
 		}
 	}
@@ -87,8 +89,8 @@ func (m *Metric) Time() time.Time {
 	return m.dp.Time()
 }
 
-func (m *Metric) SetValue(val interface{}) error {
-	return m.dp.SetValue(val)
+func (m *Metric) Set(val interface{}) error {
+	return m.dp.Set(val)
 }
 
 func (m *Metric) Value() *sfxproto.Datum {
@@ -105,6 +107,19 @@ func (m *Metric) DoubleValue() float64 {
 
 func (m *Metric) IntValue() int64 {
 	return m.dp.Value.IntValue
+}
+
+func (m *Metric) Inc() int64 {
+	if m.StrValue() != "" {
+		return 0
+	}
+
+	if m.DoubleValue() != 0 {
+		return 0
+	}
+
+	m.dp.Value.IntValue++
+	return m.IntValue()
 }
 
 func (m *Metric) String() string {
@@ -150,7 +165,7 @@ func (ms *Metrics) DataPoints() (*sfxproto.DataPoints, error) {
 
 	for m := range ms.metrics {
 		if m.get != nil {
-			if err := m.dp.SetValue(m.get.Get()); err != nil {
+			if err := m.Set(m.get.Get()); err != nil {
 				return nil, err
 			}
 		}
