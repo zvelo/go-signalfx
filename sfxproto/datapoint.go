@@ -65,6 +65,10 @@ func NewCounter(metricName string, value interface{}, defaultDims Dimensions) (*
 	return NewDataPoint(MetricType_COUNTER, metricName, value, defaultDims)
 }
 
+func (dp *DataPoint) Inc(val int64) int64 {
+	return dp.Inc(val)
+}
+
 // Set sets the datapoint value datum correctly for all integer, float and
 // string types. If another type is passed in, an error is returned.
 func (dp *DataPoint) Set(val interface{}) error {

@@ -98,28 +98,19 @@ func (m *Metric) Value() *sfxproto.Datum {
 }
 
 func (m *Metric) StrValue() string {
-	return m.dp.Value.StrValue
+	return m.dp.StrValue()
 }
 
 func (m *Metric) DoubleValue() float64 {
-	return m.dp.Value.DoubleValue
+	return m.dp.DoubleValue()
 }
 
 func (m *Metric) IntValue() int64 {
-	return m.dp.Value.IntValue
+	return m.dp.IntValue()
 }
 
-func (m *Metric) Inc() int64 {
-	if m.StrValue() != "" {
-		return 0
-	}
-
-	if m.DoubleValue() != 0 {
-		return 0
-	}
-
-	m.dp.Value.IntValue++
-	return m.IntValue()
+func (m *Metric) Inc(val int64) int64 {
+	return m.dp.Inc(val)
 }
 
 func (m *Metric) String() string {

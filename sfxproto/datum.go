@@ -2,6 +2,8 @@ package sfxproto
 
 import "fmt"
 
+// TODO(jrubin) make thread safe?
+
 var (
 	// ErrIllegalType is returned when trying to set the Datum value using an
 	// unsupported type
@@ -17,6 +19,19 @@ func NewDatum(val interface{}) *Datum {
 	}
 
 	return ret
+}
+
+func (d *Datum) Inc(val int64) int64 {
+	if d.StrValue != "" {
+		return 0
+	}
+
+	if d.DoubleValue != 0 {
+		return 0
+	}
+
+	d.IntValue += val
+	return d.IntValue
 }
 
 // Set sets the datum value correctly for all integer, float and string types.
