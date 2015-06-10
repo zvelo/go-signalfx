@@ -14,13 +14,13 @@ import (
 type DataPointCallback func(defaultDims sfxproto.Dimensions) *sfxproto.DataPoints
 
 type Reporter struct {
-	client              *sfxclient.Client
-	defaultDimensions   sfxproto.Dimensions
-	metrics             *Metrics
-	buckets             map[*Bucket]interface{}
-	preCollectCallbacks []func()
-	dataPointCallbacks  []DataPointCallback
-	lock                sync.Mutex
+	client             *sfxclient.Client
+	defaultDimensions  sfxproto.Dimensions
+	metrics            *Metrics
+	buckets            map[*Bucket]interface{}
+	preReportCallbacks []func()
+	dataPointCallbacks []DataPointCallback
+	lock               sync.Mutex
 }
 
 func New(config *sfxconfig.Config, defaultDimensions sfxproto.Dimensions) *Reporter {
@@ -81,12 +81,12 @@ func (r *Reporter) RemoveBucket(bs ...*Bucket) {
 	}
 }
 
-// AddPreCollectCallback adds a function that is called before Report().  This is useful for refetching
+// AddPreReportCallback adds a function that is called before Report().  This is useful for refetching
 // things like runtime.Memstats() so they are only fetched once per report() call
-func (r *Reporter) AddPreCollectCallback(f func()) {
+func (r *Reporter) AddPreReportCallback(f func()) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	r.preCollectCallbacks = append(r.preCollectCallbacks, f)
+	r.preReportCallbacks = append(r.preReportCallbacks, f)
 }
 
 // AddDataPointCallback adds a callback that itself will generate datapoints to report
@@ -104,7 +104,7 @@ func (r *Reporter) Report(ctx context.Context) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	for _, f := range r.preCollectCallbacks {
+	for _, f := range r.preReportCallbacks {
 		f()
 	}
 

@@ -59,7 +59,7 @@ func New(reporter *sfxreporter.Reporter) *GoMetrics {
 		Add(reporter.Cumulative("num_cgo_call", sfxreporter.GetterFunc(func() interface{} { return runtime.NumCgoCall() }), dims)).
 		Add(reporter.Gauge("num_goroutine", sfxreporter.GetterFunc(func() interface{} { return runtime.NumGoroutine() }), dims))
 
-	reporter.AddPreCollectCallback(func() {
+	reporter.AddPreReportCallback(func() {
 		runtime.ReadMemStats(&mstat)
 	})
 
