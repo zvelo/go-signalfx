@@ -22,20 +22,35 @@ func (dp *DataPoint) SetTime(t time.Time) {
 }
 
 // NewDataPoint creates a new datapoint
-func NewDataPoint(metricType MetricType, metric string, value interface{}, timeStamp time.Time, dimensions Dimensions) *DataPoint {
+func NewDataPoint(metricType MetricType, metric string, value interface{}, dimensions Dimensions) (*DataPoint, error) {
 	ret := &DataPoint{
 		Metric:     metric,
 		MetricType: metricType,
-		Dimensions: dimensions.Clone(),
 	}
 
-	ret.SetTime(timeStamp)
+	if dimensions != nil {
+		ret.Dimensions = dimensions.List()
+	}
+
+	ret.SetTime(time.Now())
 
 	if err := ret.SetValue(value); err != nil {
-		return nil
+		return nil, err
 	}
 
-	return ret
+	return ret, nil
+}
+
+func NewCumulative(metricName string, value interface{}, defaultDims Dimensions) (*DataPoint, error) {
+	return NewDataPoint(MetricType_CUMULATIVE_COUNTER, metricName, value, defaultDims)
+}
+
+func NewGauge(metricName string, value interface{}, defaultDims Dimensions) (*DataPoint, error) {
+	return NewDataPoint(MetricType_GAUGE, metricName, value, defaultDims)
+}
+
+func NewCounter(metricName string, value interface{}, defaultDims Dimensions) (*DataPoint, error) {
+	return NewDataPoint(MetricType_COUNTER, metricName, value, defaultDims)
 }
 
 // SetValue sets the datapoint value datum correctly for all integer, float and
@@ -43,11 +58,6 @@ func NewDataPoint(metricType MetricType, metric string, value interface{}, timeS
 func (dp *DataPoint) SetValue(val interface{}) error {
 	dp.Value = &Datum{}
 	return dp.Value.Set(val)
-}
-
-func (dp *DataPoint) FilterDimensions() *DataPoint {
-	dp.Dimensions = Dimensions(dp.Dimensions).Unique()
-	return dp
 }
 
 func massageKey(str string) string {

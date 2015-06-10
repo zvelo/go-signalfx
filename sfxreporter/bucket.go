@@ -3,7 +3,6 @@ package sfxreporter
 import (
 	"math"
 	"sync"
-	"time"
 
 	"github.com/zvelo/go-signalfx/sfxproto"
 )
@@ -18,7 +17,6 @@ type Bucket struct {
 	max          int64
 	sum          int64
 	sumOfSquares int64
-	time         time.Time
 	lock         sync.Mutex
 }
 
@@ -26,7 +24,6 @@ func NewBucket(metricName string, dimensions sfxproto.Dimensions) *Bucket {
 	return &Bucket{
 		metricName: metricName,
 		dimensions: dimensions,
-		time:       time.Now(),
 	}
 }
 
@@ -39,73 +36,50 @@ func (b *Bucket) Add(val int64) {
 	b.count++
 	b.sum += val
 	b.sumOfSquares += val * val
+
 	if b.count == 1 {
 		b.min = val
 		b.max = val
-	} else {
-		if b.min > val {
-			b.min = val
-		}
-		if b.max < val {
-			b.max = val
-		}
-	}
-}
-
-func (b *Bucket) Merge(val *Bucket) {
-	val.lock.Lock()
-	defer val.lock.Unlock()
-
-	if val.count == 0 {
 		return
 	}
 
-	b.lock.Lock()
-	defer b.lock.Unlock()
-
-	if b.metricName != val.metricName {
-		return
+	if b.min > val {
+		b.min = val
 	}
 
-	b.count += val.count
-	b.sum += val.sum
-	b.sumOfSquares += val.sumOfSquares
-
-	if val.min < b.min {
-		b.min = val.min
+	if b.max < val {
+		b.max = val
 	}
-
-	if val.max > b.max {
-		b.max = val.max
-	}
-
-	b.dimensions = append(b.dimensions, val.dimensions...)
 }
 
 func (b *Bucket) dimFor(defaultDims sfxproto.Dimensions, rollup string) sfxproto.Dimensions {
-	dims := append(defaultDims, b.dimensions...)
-	return append(dims, sfxproto.NewDimension("rollup", rollup))
+	dims := defaultDims.Concat(b.dimensions)
+	dims["rollup"] = rollup
+	return dims
 }
 
 func (b *Bucket) Count(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	return sfxproto.NewDataPoint(sfxproto.MetricType_COUNTER, b.metricName, b.count, b.time, b.dimFor(defaultDims, "count"))
+	dp, _ := sfxproto.NewCounter(b.metricName, b.count, b.dimFor(defaultDims, "count"))
+	return dp
 }
 
 func (b *Bucket) Sum(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	return sfxproto.NewDataPoint(sfxproto.MetricType_COUNTER, b.metricName, b.sum, b.time, b.dimFor(defaultDims, "sum"))
+	dp, _ := sfxproto.NewCounter(b.metricName, b.sum, b.dimFor(defaultDims, "sum"))
+	return dp
 }
 
 func (b *Bucket) SumOfSquares(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	return sfxproto.NewDataPoint(sfxproto.MetricType_COUNTER, b.metricName, b.sumOfSquares, b.time, b.dimFor(defaultDims, "sumsquare"))
+	dp, _ := sfxproto.NewCounter(b.metricName, b.sumOfSquares, b.dimFor(defaultDims, "sumsquare"))
+	return dp
 }
 
 // resets min
@@ -117,7 +91,8 @@ func (b *Bucket) Min(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
 	b.min, min = math.MaxInt64, b.min
 
 	if b.count != 0 && min != math.MaxInt64 {
-		return sfxproto.NewDataPoint(sfxproto.MetricType_GAUGE, b.metricName+".min", min, b.time, b.dimFor(defaultDims, "min"))
+		dp, _ := sfxproto.NewGauge(b.metricName+".min", min, b.dimFor(defaultDims, "min"))
+		return dp
 	}
 
 	return nil
@@ -132,7 +107,8 @@ func (b *Bucket) Max(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
 	b.max, max = math.MinInt64, b.max
 
 	if b.count != 0 && max != math.MinInt64 {
-		return sfxproto.NewDataPoint(sfxproto.MetricType_GAUGE, b.metricName+".max", max, b.time, b.dimFor(defaultDims, "max"))
+		dp, _ := sfxproto.NewGauge(b.metricName+".max", max, b.dimFor(defaultDims, "max"))
+		return dp
 	}
 
 	return nil
@@ -140,7 +116,7 @@ func (b *Bucket) Max(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
 
 // resets min and max
 func (b *Bucket) DataPoints(defaultDims sfxproto.Dimensions) *sfxproto.DataPoints {
-	return sfxproto.NewDataPoints(0, 5).
+	return sfxproto.NewDataPoints(5).
 		Add(b.Count(defaultDims)).
 		Add(b.Sum(defaultDims)).
 		Add(b.SumOfSquares(defaultDims)).

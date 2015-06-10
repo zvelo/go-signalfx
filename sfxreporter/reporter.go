@@ -2,7 +2,6 @@ package sfxreporter
 
 import (
 	"sync"
-	"time"
 
 	"github.com/zvelo/go-signalfx/sfxclient"
 	"github.com/zvelo/go-signalfx/sfxconfig"
@@ -17,8 +16,8 @@ type DataPointCallback func(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint
 type Reporter struct {
 	client              *sfxclient.Client
 	defaultDimensions   sfxproto.Dimensions
-	datapoints          sfxproto.DataPoints
-	buckets             []*Bucket
+	metrics             *Metrics
+	buckets             map[*Bucket]interface{}
 	preCollectCallbacks []func()
 	dataPointCallbacks  []DataPointCallback
 	lock                sync.Mutex
@@ -28,6 +27,7 @@ func New(config *sfxconfig.Config, defaultDimensions sfxproto.Dimensions) *Repor
 	return &Reporter{
 		client:            sfxclient.New(config),
 		defaultDimensions: defaultDimensions,
+		metrics:           NewMetrics(0),
 	}
 }
 
@@ -37,49 +37,47 @@ func (r *Reporter) Bucket(metricName string, dimensions sfxproto.Dimensions) *Bu
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.buckets = append(r.buckets, ret)
+	r.buckets[ret] = nil
 	return ret
 }
 
-func (r *Reporter) Cumulative(metricName string, value interface{}) *sfxproto.DataPoint {
-	ret := sfxproto.NewDataPoint(sfxproto.MetricType_CUMULATIVE_COUNTER, metricName, value, time.Now(), r.defaultDimensions)
-	r.datapoints.Add(ret)
-	return ret
+func (r *Reporter) Cumulative(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
+	m, _ := NewCumulative(metricName, val, r.defaultDimensions.Concat(dims))
+	r.metrics.Add(m)
+	return m
 }
 
-func (r *Reporter) Gauge(metricName string, value interface{}) *sfxproto.DataPoint {
-	ret := sfxproto.NewDataPoint(sfxproto.MetricType_GAUGE, metricName, value, time.Now(), r.defaultDimensions)
-	r.datapoints.Add(ret)
-	return ret
+func (r *Reporter) Gauge(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
+	m, _ := NewGauge(metricName, val, r.defaultDimensions.Concat(dims))
+	r.metrics.Add(m)
+	return m
 }
 
-func (r *Reporter) Counter(metricName string, value interface{}) *sfxproto.DataPoint {
-	ret := sfxproto.NewDataPoint(sfxproto.MetricType_COUNTER, metricName, value, time.Now(), r.defaultDimensions)
-	r.datapoints.Add(ret)
-	return ret
+func (r *Reporter) Counter(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
+	m, _ := NewCounter(metricName, val, r.defaultDimensions.Concat(dims))
+	r.metrics.Add(m)
+	return m
 }
 
-func (r *Reporter) RemoveDataPoint(dps ...*sfxproto.DataPoint) {
-	for _, dp := range dps {
-		r.datapoints.Remove(dp)
+func (r *Reporter) RemoveMetric(ms ...*Metric) {
+	r.metrics.Remove(ms...)
+}
+
+func (r *Reporter) RemoveMetrics(ms *Metrics) {
+	ms.lock.Lock()
+	defer ms.lock.Unlock()
+
+	for m := range ms.metrics {
+		r.RemoveMetric(m)
 	}
 }
 
 func (r *Reporter) RemoveBucket(bs ...*Bucket) {
-	if len(bs) != 1 {
-		for _, val := range bs {
-			r.RemoveBucket(val)
-		}
-		return
-	}
-
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	for i, b := range r.buckets {
-		if bs[0] == b {
-			r.buckets = append(r.buckets[:i], r.buckets[i+1:]...)
-		}
+	for _, b := range bs {
+		delete(r.buckets, b)
 	}
 }
 
@@ -110,14 +108,17 @@ func (r *Reporter) Report(ctx context.Context) error {
 		f()
 	}
 
-	dps := r.datapoints.ShallowCopy()
-
-	for _, f := range r.dataPointCallbacks {
-		dps.Append(f(r.defaultDimensions))
+	dps, err := r.metrics.DataPoints()
+	if err != nil {
+		return err
 	}
 
-	for _, b := range r.buckets {
-		dps.Append(b.DataPoints(r.defaultDimensions))
+	for _, f := range r.dataPointCallbacks {
+		dps = dps.Concat(f(r.defaultDimensions))
+	}
+
+	for b := range r.buckets {
+		dps = dps.Concat(b.DataPoints(r.defaultDimensions))
 	}
 
 	return r.client.Submit(ctx, dps)

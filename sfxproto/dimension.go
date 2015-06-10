@@ -1,7 +1,5 @@
 package sfxproto
 
-import "github.com/gogo/protobuf/proto"
-
 // NewDimension creates a new Dimension with the given key and value
 func NewDimension(key, value string) *Dimension {
 	return &Dimension{
@@ -11,36 +9,31 @@ func NewDimension(key, value string) *Dimension {
 }
 
 // Dimensions is a Dimension list
-type Dimensions []*Dimension
+type Dimensions map[string]string
 
-// Clone makes a deep copy of Dimensions
-func (ds Dimensions) Clone() Dimensions {
-	ret := make(Dimensions, len(ds))
+func (ds Dimensions) List() []*Dimension {
+	ret := make([]*Dimension, len(ds))
 
-	for i, d := range ds {
-		ret[i] = proto.Clone(d).(*Dimension)
+	for key, val := range ds {
+		if key == "" || val == "" {
+			continue
+		}
+
+		ret = append(ret, NewDimension(massageKey(key), val))
 	}
 
 	return ret
 }
 
-func (ds Dimensions) Unique() Dimensions {
-	uniq := map[string]*Dimension{}
+func (ds Dimensions) Concat(val Dimensions) Dimensions {
+	ret := make(Dimensions, len(ds)+len(val))
 
-	for _, dimension := range ds {
-		if dimension.Key == "" || dimension.Value == "" {
-			continue
-		}
-
-		dimension.Key = massageKey(dimension.Key)
-		uniq[dimension.Key] = dimension
+	for key, val := range ds {
+		ret[key] = val
 	}
 
-	ret := make([]*Dimension, 0, len(uniq))
-	i := 0
-	for _, dimension := range uniq {
-		ret[i] = dimension
-		i++
+	for key, val := range val {
+		ret[key] = val
 	}
 
 	return ret

@@ -25,32 +25,60 @@ func (d *Datum) Set(val interface{}) error {
 	d.Reset()
 
 	switch tval := val.(type) {
+	case nil:
+		return nil
 	case int:
 		d.IntValue = int64(tval)
+	case *int:
+		d.IntValue = int64(*tval)
 	case int8:
 		d.IntValue = int64(tval)
+	case *int8:
+		d.IntValue = int64(*tval)
 	case int16:
 		d.IntValue = int64(tval)
+	case *int16:
+		d.IntValue = int64(*tval)
 	case int32:
 		d.IntValue = int64(tval)
+	case *int32:
+		d.IntValue = int64(*tval)
 	case int64:
 		d.IntValue = tval
+	case *int64:
+		d.IntValue = *tval
 	case uint:
 		d.IntValue = int64(tval)
+	case *uint:
+		d.IntValue = int64(*tval)
 	case uint8:
 		d.IntValue = int64(tval)
+	case *uint8:
+		d.IntValue = int64(*tval)
 	case uint16:
 		d.IntValue = int64(tval)
+	case *uint16:
+		d.IntValue = int64(*tval)
 	case uint32:
 		d.IntValue = int64(tval)
+	case *uint32:
+		d.IntValue = int64(*tval)
 	case uint64:
 		d.IntValue = int64(tval)
+	case *uint64:
+		d.IntValue = int64(*tval)
 	case float32:
 		d.DoubleValue = float64(tval)
+	case *float32:
+		d.DoubleValue = float64(*tval)
 	case float64:
 		d.DoubleValue = tval
+	case *float64:
+		d.DoubleValue = *tval
 	case string:
 		d.StrValue = tval
+	case *string:
+		d.StrValue = *tval
 	default:
 		return ErrIllegalType
 	}
