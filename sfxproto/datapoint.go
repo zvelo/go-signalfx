@@ -16,6 +16,18 @@ func (dp *DataPoint) Time() time.Time {
 	return time.Unix(0, dp.Timestamp*int64(time.Millisecond))
 }
 
+func (dp *DataPoint) StrValue() string {
+	return dp.Value.StrValue
+}
+
+func (dp *DataPoint) DoubleValue() float64 {
+	return dp.Value.DoubleValue
+}
+
+func (dp *DataPoint) IntValue() int64 {
+	return dp.Value.IntValue
+}
+
 // SetTime properly sets the datapoint timestamp to the millisecond unix epoch
 func (dp *DataPoint) SetTime(t time.Time) {
 	dp.Timestamp = t.UnixNano() / int64(time.Millisecond)

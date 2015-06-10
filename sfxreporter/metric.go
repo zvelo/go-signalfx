@@ -2,6 +2,7 @@ package sfxreporter
 
 import (
 	"sync"
+	"time"
 
 	"github.com/zvelo/go-signalfx/sfxproto"
 )
@@ -76,6 +77,38 @@ func NewCounter(metricName string, val interface{}, dims sfxproto.Dimensions) (*
 	}
 
 	return NewMetric(dp, val)
+}
+
+func (m *Metric) SetTime(t time.Time) {
+	m.dp.SetTime(t)
+}
+
+func (m *Metric) Time() time.Time {
+	return m.dp.Time()
+}
+
+func (m *Metric) SetValue(val interface{}) error {
+	return m.dp.SetValue(val)
+}
+
+func (m *Metric) Value() *sfxproto.Datum {
+	return m.dp.Value
+}
+
+func (m *Metric) StrValue() string {
+	return m.dp.Value.StrValue
+}
+
+func (m *Metric) DoubleValue() float64 {
+	return m.dp.Value.DoubleValue
+}
+
+func (m *Metric) IntValue() int64 {
+	return m.dp.Value.IntValue
+}
+
+func (m *Metric) String() string {
+	return m.dp.String()
 }
 
 type Metrics struct {
