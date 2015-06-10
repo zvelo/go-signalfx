@@ -10,7 +10,7 @@ import (
 
 func TestConfig(t *testing.T) {
 	Convey("Testing Config", t, func() {
-		c := New()
+		c := New("")
 
 		Convey("default values should be correct", func() {
 			So(DefaultMaxIdleConnections, ShouldEqual, 2)

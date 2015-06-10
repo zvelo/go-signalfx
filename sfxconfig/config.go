@@ -57,11 +57,12 @@ func (c *Config) Transport() *http.Transport {
 }
 
 // New generates a new Config with default values
-func New() *Config {
+func New(authToken string) *Config {
 	return &Config{
 		MaxIdleConnections: DefaultMaxIdleConnections,
 		TimeoutDuration:    DefaultTimeoutDuration,
 		URL:                DefaultURL,
 		UserAgent:          DefaultUserAgent,
+		AuthToken:          authToken,
 	}
 }

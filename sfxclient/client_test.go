@@ -1,4 +1,4 @@
-package signalfx
+package sfxclient
 
 import (
 	"testing"

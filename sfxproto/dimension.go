@@ -23,3 +23,25 @@ func (ds Dimensions) Clone() Dimensions {
 
 	return ret
 }
+
+func (ds Dimensions) Unique() Dimensions {
+	uniq := map[string]*Dimension{}
+
+	for _, dimension := range ds {
+		if dimension.Key == "" || dimension.Value == "" {
+			continue
+		}
+
+		dimension.Key = massageKey(dimension.Key)
+		uniq[dimension.Key] = dimension
+	}
+
+	ret := make([]*Dimension, 0, len(uniq))
+	i := 0
+	for _, dimension := range uniq {
+		ret[i] = dimension
+		i++
+	}
+
+	return ret
+}

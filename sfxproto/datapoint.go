@@ -7,12 +7,6 @@ import (
 	"unicode"
 )
 
-var (
-	// ErrDuplicatedDimension is returned if more than one dimension has the
-	// same key
-	ErrDuplicatedDimension = fmt.Errorf("found duplicated dimension")
-)
-
 func (dp *DataPoint) String() string {
 	return fmt.Sprintf("DP[%s\t%s\t%s\t%d\t%s]", dp.Metric, dp.Dimensions, dp.Value, dp.MetricType, dp.Time().String())
 }
@@ -51,26 +45,9 @@ func (dp *DataPoint) SetValue(val interface{}) error {
 	return dp.Value.Set(val)
 }
 
-func (dp *DataPoint) filterDimensions() error {
-	ret := make([]*Dimension, 0, len(dp.Dimensions))
-	for i, dimension := range dp.Dimensions {
-		if dimension.Key == "" || dimension.Value == "" {
-			continue
-		}
-
-		for j := i + 1; j < len(dp.Dimensions); j++ {
-			if dimension.Key == dp.Dimensions[j].Key {
-				return ErrDuplicatedDimension
-			}
-		}
-
-		dimension.Key = massageKey(dimension.Key)
-		ret = append(ret, dimension)
-	}
-
-	dp.Dimensions = ret
-
-	return nil
+func (dp *DataPoint) FilterDimensions() *DataPoint {
+	dp.Dimensions = Dimensions(dp.Dimensions).Unique()
+	return dp
 }
 
 func massageKey(str string) string {

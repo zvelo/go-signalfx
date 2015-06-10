@@ -1,4 +1,4 @@
-package signalfx
+package sfxclient
 
 import (
 	"bytes"
@@ -29,9 +29,9 @@ func New(config *sfxconfig.Config) *Client {
 	}
 }
 
-// Submit forwards datapoints to SignalFx
-func (c *Client) Submit(ctx context.Context, dp sfxproto.DataPoints) error {
-	jsonBytes, err := dp.Marshal(c.config)
+// Submit forwards raw datapoints to SignalFx
+func (c *Client) Submit(ctx context.Context, dps *sfxproto.DataPoints) error {
+	jsonBytes, err := dps.Marshal(c.config)
 	if err != nil {
 		return ErrMarshal(err)
 	}
