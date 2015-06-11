@@ -27,6 +27,10 @@ func NewDataPoints(l int) *DataPoints {
 	}
 }
 
+func (dps *DataPoints) Len() int {
+	return len(dps.data)
+}
+
 // Marshal filters out metrics with empty names, filters out dimensions with an
 // empty or duplicate key or value and then marshals the protobuf to a byte
 // slice.
@@ -34,7 +38,7 @@ func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
 	dps.lock.Lock()
 	defer dps.lock.Unlock()
 
-	if len(dps.data) == 0 {
+	if dps.Len() == 0 {
 		return nil, ErrMarshalNoData
 	}
 

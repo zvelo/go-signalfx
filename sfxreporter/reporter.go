@@ -118,7 +118,7 @@ func (r *Reporter) Report(ctx context.Context) error {
 	}
 
 	for b := range r.buckets {
-		dps = dps.Concat(b.DataPoints(r.defaultDimensions))
+		dps = dps.Concat(b.dataPoints(r.defaultDimensions))
 	}
 
 	return r.client.Submit(ctx, dps)

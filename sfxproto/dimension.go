@@ -12,7 +12,7 @@ func NewDimension(key, value string) *Dimension {
 type Dimensions map[string]string
 
 func (ds Dimensions) List() []*Dimension {
-	ret := make([]*Dimension, len(ds))
+	ret := make([]*Dimension, 0, len(ds))
 
 	for key, val := range ds {
 		if key == "" || val == "" {
