@@ -3,6 +3,7 @@ package sfxproto
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/zvelo/go-signalfx/sfxconfig"
@@ -13,6 +14,19 @@ var (
 	// DataPoint values
 	ErrMarshalNoData = fmt.Errorf("no data to marshal")
 )
+
+func (dp *DataPoint) String() string {
+	t := time.Unix(0, dp.Timestamp*int64(time.Millisecond))
+	return fmt.Sprintf("DP[%s\t%s\t%s\t%d\t%s]", dp.Metric, dp.Dimensions, dp.Value, dp.MetricType, t)
+}
+
+func (dp *DataPoint) Clone() *DataPoint {
+	return proto.Clone(dp).(*DataPoint)
+}
+
+func (dp *DataPoint) Equals(val *DataPoint) bool {
+	return proto.Equal(dp, val)
+}
 
 // DataPoints is a DataPoint list
 type DataPoints struct {
@@ -60,36 +74,6 @@ func (dps *DataPoints) Add(dataPoint *DataPoint) *DataPoints {
 	}
 
 	return dps
-}
-
-func (dps *DataPoints) NewCumulative(metricName string, value interface{}, dims Dimensions) (*DataPoint, error) {
-	dp, err := NewCumulative(metricName, value, dims)
-	if err != nil {
-		return nil, err
-	}
-
-	dps.Add(dp)
-	return dp, nil
-}
-
-func (dps *DataPoints) NewGauge(metricName string, value interface{}, dims Dimensions) (*DataPoint, error) {
-	dp, err := NewGauge(metricName, value, dims)
-	if err != nil {
-		return nil, err
-	}
-
-	dps.Add(dp)
-	return dp, err
-}
-
-func (dps *DataPoints) NewCounter(metricName string, value interface{}, dims Dimensions) (*DataPoint, error) {
-	dp, err := NewCounter(metricName, value, dims)
-	if err != nil {
-		return nil, err
-	}
-
-	dps.Add(dp)
-	return dp, err
 }
 
 func (dps *DataPoints) Concat(val *DataPoints) *DataPoints {

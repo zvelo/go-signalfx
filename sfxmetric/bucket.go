@@ -1,4 +1,4 @@
-package sfxreporter
+package sfxmetric
 
 import (
 	"math"
@@ -10,7 +10,7 @@ import (
 // A Bucket trakcs groups of values, reporting the min/max as gauges, and
 // count/sum/sum of squares as a cumulative counter
 type Bucket struct {
-	metricName   string
+	Metric       string
 	dimensions   sfxproto.Dimensions
 	count        int64
 	min          int64
@@ -18,10 +18,6 @@ type Bucket struct {
 	sum          int64
 	sumOfSquares int64
 	lock         sync.Mutex
-}
-
-func (b *Bucket) MetricName() string {
-	return b.metricName
 }
 
 func (b *Bucket) Count() int64 {
@@ -59,9 +55,9 @@ func (b *Bucket) SumOfSquares() int64 {
 	return b.sumOfSquares
 }
 
-func NewBucket(metricName string, dimensions sfxproto.Dimensions) *Bucket {
+func NewBucket(metric string, dimensions sfxproto.Dimensions) *Bucket {
 	return &Bucket{
-		metricName: metricName,
+		Metric:     metric,
 		dimensions: dimensions,
 	}
 }
@@ -98,32 +94,40 @@ func (b *Bucket) dimFor(defaultDims sfxproto.Dimensions, rollup string) sfxproto
 	return dims
 }
 
-// depends on outer lock
-func (b *Bucket) dpCount(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
-	dp, _ := sfxproto.NewCounter(b.metricName, b.count, b.dimFor(defaultDims, "count"))
+func (b *Bucket) CountMetric(defaultDims sfxproto.Dimensions) *Metric {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	dp, _ := NewCounter(b.Metric, b.count, b.dimFor(defaultDims, "count"))
 	return dp
 }
 
-// depends on outer lock
-func (b *Bucket) dpSum(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
-	dp, _ := sfxproto.NewCounter(b.metricName, b.sum, b.dimFor(defaultDims, "sum"))
+func (b *Bucket) SumMetric(defaultDims sfxproto.Dimensions) *Metric {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	dp, _ := NewCounter(b.Metric, b.sum, b.dimFor(defaultDims, "sum"))
 	return dp
 }
 
-// depends on outer lock
-func (b *Bucket) dpSumOfSquares(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
-	dp, _ := sfxproto.NewCounter(b.metricName, b.sumOfSquares, b.dimFor(defaultDims, "sumsquare"))
+func (b *Bucket) SumOfSquaresMetric(defaultDims sfxproto.Dimensions) *Metric {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	dp, _ := NewCounter(b.Metric, b.sumOfSquares, b.dimFor(defaultDims, "sumsquare"))
 	return dp
 }
 
 // resets min
-// depends on outer lock
-func (b *Bucket) dpMin(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
+func (b *Bucket) MinMetric(defaultDims sfxproto.Dimensions) *Metric {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
 	var min int64
 	b.min, min = math.MaxInt64, b.min
 
 	if b.count != 0 && min != math.MaxInt64 {
-		dp, _ := sfxproto.NewGauge(b.metricName+".min", min, b.dimFor(defaultDims, "min"))
+		dp, _ := NewGauge(b.Metric+".min", min, b.dimFor(defaultDims, "min"))
 		return dp
 	}
 
@@ -131,13 +135,15 @@ func (b *Bucket) dpMin(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
 }
 
 // resets max
-// depends on outer lock
-func (b *Bucket) dpMax(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
+func (b *Bucket) MaxMetric(defaultDims sfxproto.Dimensions) *Metric {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
 	var max int64
 	b.max, max = math.MinInt64, b.max
 
 	if b.count != 0 && max != math.MinInt64 {
-		dp, _ := sfxproto.NewGauge(b.metricName+".max", max, b.dimFor(defaultDims, "max"))
+		dp, _ := NewGauge(b.Metric+".max", max, b.dimFor(defaultDims, "max"))
 		return dp
 	}
 
@@ -145,14 +151,11 @@ func (b *Bucket) dpMax(defaultDims sfxproto.Dimensions) *sfxproto.DataPoint {
 }
 
 // resets min and max
-func (b *Bucket) dataPoints(defaultDims sfxproto.Dimensions) *sfxproto.DataPoints {
-	b.lock.Lock()
-	defer b.lock.Unlock()
-
-	return sfxproto.NewDataPoints(5).
-		Add(b.dpCount(defaultDims)).
-		Add(b.dpSum(defaultDims)).
-		Add(b.dpSumOfSquares(defaultDims)).
-		Add(b.dpMin(defaultDims)).
-		Add(b.dpMax(defaultDims))
+func (b *Bucket) Metrics(defaultDims sfxproto.Dimensions) *Metrics {
+	return NewMetrics(5).
+		Add(b.CountMetric(defaultDims)).
+		Add(b.SumMetric(defaultDims)).
+		Add(b.SumOfSquaresMetric(defaultDims)).
+		Add(b.MinMetric(defaultDims)).
+		Add(b.MaxMetric(defaultDims))
 }
