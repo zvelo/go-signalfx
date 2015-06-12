@@ -2,6 +2,9 @@ package sfxconfig
 
 import (
 	"crypto/tls"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -27,10 +30,40 @@ func TestConfig(t *testing.T) {
 		})
 
 		Convey("transport should be properly configured", func() {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(`"OK"`))
+			}))
+			defer ts.Close()
+
+			c.URL = ts.URL
 			tr := c.Transport()
 			So(tr.TLSClientConfig, ShouldResemble, &tls.Config{InsecureSkipVerify: false})
 			So(tr.MaxIdleConnsPerHost, ShouldEqual, DefaultMaxIdleConnections)
 			So(tr.ResponseHeaderTimeout, ShouldEqual, DefaultTimeoutDuration)
+
+			u, err := url.Parse(c.URL)
+			So(err, ShouldBeNil)
+
+			conn, err := tr.Dial("tcp", u.Host)
+			So(err, ShouldBeNil)
+			So(conn, ShouldNotBeNil)
+			So(conn.Close(), ShouldBeNil)
+		})
+
+		Convey("clone should work", func() {
+			authToken := "sometoken"
+
+			c0 := New(authToken)
+			So(c0.AuthToken, ShouldEqual, authToken)
+			c1 := c0.Clone()
+
+			So(c0, ShouldNotEqual, c1)
+			So(c0.MaxIdleConnections, ShouldEqual, c1.MaxIdleConnections)
+			So(c0.TimeoutDuration, ShouldEqual, c1.TimeoutDuration)
+			So(c0.URL, ShouldEqual, c1.URL)
+			So(c0.AuthToken, ShouldEqual, c1.AuthToken)
+			So(c0.UserAgent, ShouldEqual, c1.UserAgent)
+			So(c0.TLSInsecureSkipVerify, ShouldEqual, c1.TLSInsecureSkipVerify)
 		})
 	})
 }

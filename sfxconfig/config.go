@@ -41,7 +41,9 @@ type Config struct {
 // Clone makes a deep copy of a Config
 func (c *Config) Clone() *Config {
 	// there are no fields, presently, that require any spacial handling
-	return &(*c)
+	var ret Config
+	ret = *c
+	return &ret
 }
 
 // Transport returns an http.Transport configured according to Config
