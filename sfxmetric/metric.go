@@ -70,14 +70,14 @@ func (m *Metric) Time() time.Time {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	return time.Unix(0, m.dp.Timestamp*int64(time.Millisecond))
+	return m.dp.Time()
 }
 
 func (m *Metric) SetTime(t time.Time) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	m.dp.Timestamp = t.UnixNano() / int64(time.Millisecond)
+	m.dp.SetTime(t)
 }
 
 func (m *Metric) Metric() string {

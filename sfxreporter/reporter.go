@@ -92,9 +92,9 @@ func (r *Reporter) AddDataPointCallback(f DataPointCallback) {
 	r.dataPointCallbacks = append(r.dataPointCallbacks, f)
 }
 
-func (r *Reporter) Report(ctx context.Context) error {
+func (r *Reporter) Report(ctx context.Context) (*sfxproto.DataPoints, error) {
 	if ctx.Err() != nil {
-		return ctx.Err()
+		return nil, ctx.Err()
 	}
 
 	r.lock.Lock()
@@ -106,7 +106,7 @@ func (r *Reporter) Report(ctx context.Context) error {
 
 	dps, err := r.metrics.DataPoints()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, f := range r.dataPointCallbacks {
@@ -116,10 +116,14 @@ func (r *Reporter) Report(ctx context.Context) error {
 	for b := range r.buckets {
 		tmp, err := b.Metrics(r.defaultDimensions).DataPoints()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		dps = dps.Concat(tmp)
 	}
 
-	return r.client.Submit(ctx, dps)
+	if err = r.client.Submit(ctx, dps); err != nil {
+		return nil, err
+	}
+
+	return dps, nil
 }

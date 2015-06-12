@@ -16,8 +16,15 @@ var (
 )
 
 func (dp *DataPoint) String() string {
-	t := time.Unix(0, dp.Timestamp*int64(time.Millisecond))
-	return fmt.Sprintf("DP[%s\t%s\t%s\t%d\t%s]", dp.Metric, dp.Dimensions, dp.Value, dp.MetricType, t)
+	return fmt.Sprintf("DP[%s\t%s\t%s\t%d\t%s]", dp.Metric, dp.Dimensions, dp.Value, dp.MetricType, dp.Time())
+}
+
+func (dp *DataPoint) Time() time.Time {
+	return time.Unix(0, dp.Timestamp*int64(time.Millisecond))
+}
+
+func (dp *DataPoint) SetTime(t time.Time) {
+	dp.Timestamp = t.UnixNano() / int64(time.Millisecond)
 }
 
 func (dp *DataPoint) Clone() *DataPoint {
@@ -42,26 +49,37 @@ func NewDataPoints(l int) *DataPoints {
 }
 
 func (dps *DataPoints) Len() int {
+	dps.lock.Lock()
+	defer dps.lock.Unlock()
+
 	return len(dps.data)
+}
+
+// returns copies for thread safety reasons
+func (dps *DataPoints) List() []*DataPoint {
+	ret := make([]*DataPoint, 0, dps.Len())
+
+	dps.lock.Lock()
+	defer dps.lock.Unlock()
+
+	for dp := range dps.data {
+		ret = append(ret, dp.Clone())
+	}
+
+	return ret
 }
 
 // Marshal filters out metrics with empty names, filters out dimensions with an
 // empty or duplicate key or value and then marshals the protobuf to a byte
 // slice.
 func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
-	dps.lock.Lock()
-	defer dps.lock.Unlock()
-
 	if dps.Len() == 0 {
 		return nil, ErrMarshalNoData
 	}
 
-	ret := DataPointUploadMessage{}
-	for dp := range dps.data {
-		ret.Datapoints = append(ret.Datapoints, dp)
-	}
-
-	return proto.Marshal(&ret)
+	return proto.Marshal(&DataPointUploadMessage{
+		Datapoints: dps.List(),
+	})
 }
 
 // Add a new DataPoint to the list
