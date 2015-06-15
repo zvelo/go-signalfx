@@ -95,7 +95,7 @@ func TestDataPoint(t *testing.T) {
 				So(err, ShouldBeNil)
 
 				// ensure they are equal
-				So(dp.Equals(p3dp), ShouldBeTrue)
+				So(dp.Equal(p3dp), ShouldBeTrue)
 			})
 		})
 	})

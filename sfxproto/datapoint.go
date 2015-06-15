@@ -23,6 +23,6 @@ func (dp *DataPoint) Clone() *DataPoint {
 	return proto.Clone(dp).(*DataPoint)
 }
 
-func (dp *DataPoint) Equals(val *DataPoint) bool {
+func (dp *DataPoint) Equal(val *DataPoint) bool {
 	return proto.Equal(dp, val)
 }

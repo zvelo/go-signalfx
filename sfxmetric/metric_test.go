@@ -15,9 +15,9 @@ func TestMetric(t *testing.T) {
 			c, err := NewCounter("count", 2, nil)
 			So(err, ShouldBeNil)
 			So(c.IntValue(), ShouldEqual, 2)
-			So(c.Metric(), ShouldEqual, "count")
+			So(c.Name(), ShouldEqual, "count")
 			So(c.Time().Before(time.Now()), ShouldBeTrue)
-			So(c.MetricType(), ShouldEqual, sfxproto.MetricType_COUNTER)
+			So(c.Type(), ShouldEqual, sfxproto.MetricType_COUNTER)
 
 			dim := c.Dimensions()
 			So(dim, ShouldNotBeNil)
@@ -27,12 +27,12 @@ func TestMetric(t *testing.T) {
 			So(e, ShouldNotEqual, c)
 			So(e.dp, ShouldNotEqual, c.dp)
 			So(e.IntValue(), ShouldEqual, 2)
-			So(e.Metric(), ShouldEqual, "count")
+			So(e.Name(), ShouldEqual, "count")
 			So(e.Time().Equal(c.Time()), ShouldBeTrue)
-			So(e.MetricType(), ShouldEqual, sfxproto.MetricType_COUNTER)
+			So(e.Type(), ShouldEqual, sfxproto.MetricType_COUNTER)
 
-			So(c.Equals(e), ShouldBeTrue)
-			So(e.Equals(c), ShouldBeTrue)
+			So(c.Equal(e), ShouldBeTrue)
+			So(e.Equal(c), ShouldBeTrue)
 		})
 
 		Convey("created metric should have the correct value", func() {
@@ -49,8 +49,8 @@ func TestMetric(t *testing.T) {
 			So(m1.IntValue(), ShouldEqual, 0)
 			So(m1.DoubleValue(), ShouldEqual, 0.1)
 			So(m1.StrValue(), ShouldBeEmpty)
-			So(m0.Equals(m1), ShouldBeFalse)
-			So(m1.Equals(m0), ShouldBeFalse)
+			So(m0.Equal(m1), ShouldBeFalse)
+			So(m1.Equal(m0), ShouldBeFalse)
 
 			m2, err := NewCounter("count", "hi", nil)
 			So(err, ShouldBeNil)
@@ -79,7 +79,7 @@ func TestMetric(t *testing.T) {
 			c, err := NewCumulative("count", g, nil)
 			So(err, ShouldBeNil)
 			So(c.IntValue(), ShouldEqual, 5)
-			So(c.MetricType(), ShouldEqual, sfxproto.MetricType_CUMULATIVE_COUNTER)
+			So(c.Type(), ShouldEqual, sfxproto.MetricType_CUMULATIVE_COUNTER)
 
 			i = 9
 			So(c.update(), ShouldBeNil)
@@ -91,7 +91,7 @@ func TestMetric(t *testing.T) {
 			c, err := NewGauge("count", GetterFunc(func() (interface{}, error) { return i, nil }), nil)
 			So(err, ShouldBeNil)
 			So(c.IntValue(), ShouldEqual, 9)
-			So(c.MetricType(), ShouldEqual, sfxproto.MetricType_GAUGE)
+			So(c.Type(), ShouldEqual, sfxproto.MetricType_GAUGE)
 
 			i++
 			So(c.update(), ShouldBeNil)
