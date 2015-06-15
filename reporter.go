@@ -59,10 +59,10 @@ func (r *Reporter) NewCounter(metricName string, val interface{}, dims sfxproto.
 }
 
 func (r *Reporter) NewIncrementer(metricName string, dims sfxproto.Dimensions) *Incrementer {
-	inc := Incrementer(0)
+	inc := NewIncrementer(0)
 	m, _ := NewCounter(metricName, &inc, r.defaultDimensions.Concat(dims))
 	r.metrics.Add(m)
-	return &inc
+	return inc
 }
 
 func (r *Reporter) AddMetric(vals ...*Metric) {

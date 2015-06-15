@@ -177,7 +177,7 @@ func ExampleReporter() {
 
 	_, err := reporter.Report(context.Background())
 
-	fmt.Printf("incrementer: %d\n", *inc)
+	fmt.Printf("incrementer: %d\n", inc.Value())
 	fmt.Printf("cumulative: %d\n", cumulative.IntValue())
 	fmt.Printf("error: %v\n", err)
 
