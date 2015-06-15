@@ -1,4 +1,7 @@
+package signalfx
+
 /*
+TODO(jrubin)
 Package sfxmetric provides the types used for interacting with sfxreporter.
 
 The fundamental type is Metric which is suggested for client use.
@@ -11,4 +14,3 @@ provide values via a callback at the time of the Report. In this way, pointer
 values, or function values that may change are automatically kept up-to-date
 without needing to manually set them.
 */
-package sfxmetric

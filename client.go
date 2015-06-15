@@ -1,4 +1,4 @@
-package sfxclient
+package signalfx
 
 import (
 	"bytes"

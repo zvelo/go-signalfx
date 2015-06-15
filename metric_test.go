@@ -1,4 +1,4 @@
-package sfxmetric
+package signalfx
 
 import (
 	"fmt"

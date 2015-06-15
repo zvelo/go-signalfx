@@ -1,4 +1,4 @@
-package sfxmetric
+package signalfx
 
 func toInt64(val interface{}) (int64, error) {
 	switch tval := val.(type) {

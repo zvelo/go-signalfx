@@ -1,4 +1,4 @@
-package sfxgometrics
+package signalfx
 
 import (
 	"net/http"
@@ -7,9 +7,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/zvelo/go-signalfx/sfxclient"
 	"github.com/zvelo/go-signalfx/sfxproto"
-	"github.com/zvelo/go-signalfx/sfxreporter"
 	"golang.org/x/net/context"
 )
 
@@ -23,12 +21,12 @@ func TestGoMetrics(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		config := sfxclient.NewConfig(authToken)
+		config := NewConfig(authToken)
 		So(config, ShouldNotBeNil)
 
 		config.URL = ts.URL
 
-		reporter := sfxreporter.NewReporter(config, nil)
+		reporter := NewReporter(config, nil)
 		So(reporter, ShouldNotBeNil)
 
 		gometrics := NewGoMetrics(reporter)

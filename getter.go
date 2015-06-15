@@ -1,4 +1,4 @@
-package sfxmetric
+package signalfx
 
 // Getter is an interface that is used by Metric. It may return any kind of
 // integer, float, string or nil, including pointers. Any other type is invalid.

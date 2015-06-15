@@ -1,4 +1,4 @@
-package sfxreporter
+package signalfx
 
 import (
 	"net/http"
@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/zvelo/go-signalfx/sfxclient"
 )
 
 func TestReporter(t *testing.T) {
@@ -18,7 +17,7 @@ func TestReporter(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		config := sfxclient.NewConfig(authToken)
+		config := NewConfig(authToken)
 		So(config, ShouldNotBeNil)
 
 		config.URL = ts.URL

@@ -1,10 +1,8 @@
-package sfxreporter
+package signalfx
 
 import (
 	"sync"
 
-	"github.com/zvelo/go-signalfx/sfxclient"
-	"github.com/zvelo/go-signalfx/sfxmetric"
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
 )
@@ -14,25 +12,25 @@ import (
 type DataPointCallback func(defaultDims sfxproto.Dimensions) *sfxproto.DataPoints
 
 type Reporter struct {
-	client             *sfxclient.Client
+	client             *Client
 	defaultDimensions  sfxproto.Dimensions
-	metrics            *sfxmetric.Metrics
-	buckets            map[*sfxmetric.Bucket]interface{}
+	metrics            *Metrics
+	buckets            map[*Bucket]interface{}
 	preReportCallbacks []func()
 	dataPointCallbacks []DataPointCallback
 	lock               sync.Mutex
 }
 
-func NewReporter(config *sfxclient.Config, defaultDimensions sfxproto.Dimensions) *Reporter {
+func NewReporter(config *Config, defaultDimensions sfxproto.Dimensions) *Reporter {
 	return &Reporter{
-		client:            sfxclient.NewClient(config),
+		client:            NewClient(config),
 		defaultDimensions: defaultDimensions,
-		metrics:           sfxmetric.NewMetrics(0),
+		metrics:           NewMetrics(0),
 	}
 }
 
-func (r *Reporter) Bucket(metricName string, dimensions sfxproto.Dimensions) *sfxmetric.Bucket {
-	ret := sfxmetric.NewBucket(metricName, dimensions)
+func (r *Reporter) Bucket(metricName string, dimensions sfxproto.Dimensions) *Bucket {
+	ret := NewBucket(metricName, dimensions)
 
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -41,33 +39,33 @@ func (r *Reporter) Bucket(metricName string, dimensions sfxproto.Dimensions) *sf
 	return ret
 }
 
-func (r *Reporter) Cumulative(metricName string, val interface{}, dims sfxproto.Dimensions) *sfxmetric.Metric {
-	m, _ := sfxmetric.NewCumulative(metricName, val, r.defaultDimensions.Concat(dims))
+func (r *Reporter) Cumulative(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
+	m, _ := NewCumulative(metricName, val, r.defaultDimensions.Concat(dims))
 	r.metrics.Add(m)
 	return m
 }
 
-func (r *Reporter) Gauge(metricName string, val interface{}, dims sfxproto.Dimensions) *sfxmetric.Metric {
-	m, _ := sfxmetric.NewGauge(metricName, val, r.defaultDimensions.Concat(dims))
+func (r *Reporter) Gauge(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
+	m, _ := NewGauge(metricName, val, r.defaultDimensions.Concat(dims))
 	r.metrics.Add(m)
 	return m
 }
 
-func (r *Reporter) Counter(metricName string, val interface{}, dims sfxproto.Dimensions) *sfxmetric.Metric {
-	m, _ := sfxmetric.NewCounter(metricName, val, r.defaultDimensions.Concat(dims))
+func (r *Reporter) Counter(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
+	m, _ := NewCounter(metricName, val, r.defaultDimensions.Concat(dims))
 	r.metrics.Add(m)
 	return m
 }
 
-func (r *Reporter) RemoveMetric(ms ...*sfxmetric.Metric) {
+func (r *Reporter) RemoveMetric(ms ...*Metric) {
 	r.metrics.Remove(ms...)
 }
 
-func (r *Reporter) RemoveMetrics(ms *sfxmetric.Metrics) {
+func (r *Reporter) RemoveMetrics(ms *Metrics) {
 	r.metrics.RemoveMetrics(ms)
 }
 
-func (r *Reporter) RemoveBucket(bs ...*sfxmetric.Bucket) {
+func (r *Reporter) RemoveBucket(bs ...*Bucket) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
