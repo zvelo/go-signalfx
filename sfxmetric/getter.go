@@ -8,7 +8,9 @@ type Getter interface {
 
 // The GetterFunc type is an adapter to allow the use of ordinary functions as
 // Metric Getters. If f is a function with the appropriate signature,
-// GetterFunc(f) is a Getter object that calls f.
+// GetterFunc(f) is a Getter object that calls f. f() must return a value that
+// is nil, any int type, any float type, a string, a pointer to any of those
+// types or a Getter that returns any of those types.
 type GetterFunc func() (interface{}, error)
 
 // Get calls f()
@@ -16,8 +18,10 @@ func (f GetterFunc) Get() (interface{}, error) {
 	return f()
 }
 
-// ValueGetter is a convenience function for making a value satisfy the
-// Getter interface. It is especially useful with pointers.
+// ValueGetter is a convenience function for making a value satisfy the Getter
+// interface. It is especially useful with pointers. value must be nil, any int
+// type, any float type, a string, a pointer to any of those types or a Getter
+// that returns any of those types.
 func ValueGetter(value interface{}) Getter {
 	return valueGetter{value}
 }

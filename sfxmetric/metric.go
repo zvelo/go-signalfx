@@ -24,7 +24,8 @@ type Metric struct {
 }
 
 // New creates a new Metric. val can be nil, any int type, any float type, a
-// string or a Getter that returns any of those types.
+// string, a pointer to any of those types or a Getter that returns any of those
+// types.
 func New(metricType sfxproto.MetricType, metric string, val interface{}, dims sfxproto.Dimensions) (*Metric, error) {
 	ret := &Metric{
 		dp: &sfxproto.DataPoint{
@@ -140,7 +141,8 @@ func (m *Metric) DoubleValue() float64 {
 }
 
 // Set the value of the Metric. It can be nil, any int type, any float type, a
-// string or a Getter that returns any of those types.
+// string, a pointer to any of those types or a Getter that returns any of those
+// types.
 func (m *Metric) Set(val interface{}) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
