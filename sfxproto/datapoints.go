@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/zvelo/go-signalfx/sfxconfig"
 )
 
 var (
@@ -51,7 +50,7 @@ func (dps *DataPoints) List() []*DataPoint {
 // Marshal filters out metrics with empty names, filters out dimensions with an
 // empty or duplicate key or value and then marshals the protobuf to a byte
 // slice.
-func (dps *DataPoints) Marshal(config *sfxconfig.Config) ([]byte, error) {
+func (dps *DataPoints) Marshal() ([]byte, error) {
 	if dps.Len() == 0 {
 		return nil, ErrMarshalNoData
 	}

@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/zvelo/go-signalfx/sfxclient"
-	"github.com/zvelo/go-signalfx/sfxconfig"
 	"github.com/zvelo/go-signalfx/sfxmetric"
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
@@ -24,9 +23,9 @@ type Reporter struct {
 	lock               sync.Mutex
 }
 
-func New(config *sfxconfig.Config, defaultDimensions sfxproto.Dimensions) *Reporter {
+func NewReporter(config *sfxclient.Config, defaultDimensions sfxproto.Dimensions) *Reporter {
 	return &Reporter{
-		client:            sfxclient.New(config),
+		client:            sfxclient.NewClient(config),
 		defaultDimensions: defaultDimensions,
 		metrics:           sfxmetric.NewMetrics(0),
 	}

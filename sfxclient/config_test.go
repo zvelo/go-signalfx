@@ -1,4 +1,4 @@
-package sfxconfig
+package sfxclient
 
 import (
 	"crypto/tls"
@@ -13,7 +13,7 @@ import (
 
 func TestConfig(t *testing.T) {
 	Convey("Testing Config", t, func() {
-		c := New("")
+		c := NewConfig("")
 
 		Convey("default values should be correct", func() {
 			So(DefaultMaxIdleConnections, ShouldEqual, 2)
@@ -53,7 +53,7 @@ func TestConfig(t *testing.T) {
 		Convey("clone should work", func() {
 			authToken := "sometoken"
 
-			c0 := New(authToken)
+			c0 := NewConfig(authToken)
 			So(c0.AuthToken, ShouldEqual, authToken)
 			c1 := c0.Clone()
 

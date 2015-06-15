@@ -1,4 +1,4 @@
-package sfxconfig
+package sfxclient
 
 import (
 	"crypto/tls"
@@ -58,8 +58,8 @@ func (c *Config) Transport() *http.Transport {
 	}
 }
 
-// New generates a new Config with default values
-func New(authToken string) *Config {
+// NewConfig generates a new Config with default values
+func NewConfig(authToken string) *Config {
 	return &Config{
 		MaxIdleConnections: DefaultMaxIdleConnections,
 		TimeoutDuration:    DefaultTimeoutDuration,

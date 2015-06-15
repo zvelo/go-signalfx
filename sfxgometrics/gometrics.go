@@ -15,8 +15,8 @@ type GoMetrics struct {
 	reporter *sfxreporter.Reporter
 }
 
-// New registers the reporter to report go system metrics
-func New(reporter *sfxreporter.Reporter) *GoMetrics {
+// NewGoMetrics registers the reporter to report go system metrics
+func NewGoMetrics(reporter *sfxreporter.Reporter) *GoMetrics {
 	dims := sfxproto.Dimensions{
 		"instance": "global_stats",
 		"stattype": "golang_sys",

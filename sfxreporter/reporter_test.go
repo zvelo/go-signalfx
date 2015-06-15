@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/zvelo/go-signalfx/sfxconfig"
+	"github.com/zvelo/go-signalfx/sfxclient"
 )
 
 func TestReporter(t *testing.T) {
@@ -18,12 +18,12 @@ func TestReporter(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		config := sfxconfig.New(authToken)
+		config := sfxclient.NewConfig(authToken)
 		So(config, ShouldNotBeNil)
 
 		config.URL = ts.URL
 
-		reporter := New(config, nil)
+		reporter := NewReporter(config, nil)
 		So(reporter, ShouldNotBeNil)
 	})
 }

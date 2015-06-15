@@ -23,10 +23,10 @@ type Metric struct {
 	lock sync.Mutex
 }
 
-// New creates a new Metric. val can be nil, any int type, any float type, a
+// NewMetric creates a new Metric. val can be nil, any int type, any float type, a
 // string, a pointer to any of those types or a Getter that returns any of those
 // types.
-func New(metricType sfxproto.MetricType, metric string, val interface{}, dims sfxproto.Dimensions) (*Metric, error) {
+func NewMetric(metricType sfxproto.MetricType, metric string, val interface{}, dims sfxproto.Dimensions) (*Metric, error) {
 	ret := &Metric{
 		dp: &sfxproto.DataPoint{
 			Metric:     metric,
@@ -235,17 +235,17 @@ func (m *Metric) Set(val interface{}) error {
 
 // NewCumulative returns a new Metric set to type CUMULATIVE_COUNTER
 func NewCumulative(metric string, val interface{}, dims sfxproto.Dimensions) (*Metric, error) {
-	return New(sfxproto.MetricType_CUMULATIVE_COUNTER, metric, val, dims)
+	return NewMetric(sfxproto.MetricType_CUMULATIVE_COUNTER, metric, val, dims)
 }
 
 // NewGauge returns a new Metric set to type GAUGE
 func NewGauge(metric string, val interface{}, dims sfxproto.Dimensions) (*Metric, error) {
-	return New(sfxproto.MetricType_GAUGE, metric, val, dims)
+	return NewMetric(sfxproto.MetricType_GAUGE, metric, val, dims)
 }
 
 // NewCounter returns a new Metric set to type COUNTER
 func NewCounter(metric string, val interface{}, dims sfxproto.Dimensions) (*Metric, error) {
-	return New(sfxproto.MetricType_COUNTER, metric, val, dims)
+	return NewMetric(sfxproto.MetricType_COUNTER, metric, val, dims)
 }
 
 func (m *Metric) update() error {

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/zvelo/go-signalfx/sfxconfig"
+	"github.com/zvelo/go-signalfx/sfxclient"
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"github.com/zvelo/go-signalfx/sfxreporter"
 	"golang.org/x/net/context"
@@ -23,15 +23,15 @@ func TestGoMetrics(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		config := sfxconfig.New(authToken)
+		config := sfxclient.NewConfig(authToken)
 		So(config, ShouldNotBeNil)
 
 		config.URL = ts.URL
 
-		reporter := sfxreporter.New(config, nil)
+		reporter := sfxreporter.NewReporter(config, nil)
 		So(reporter, ShouldNotBeNil)
 
-		gometrics := New(reporter)
+		gometrics := NewGoMetrics(reporter)
 
 		dps, err := reporter.Report(context.Background())
 		So(err, ShouldBeNil)

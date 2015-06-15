@@ -6,20 +6,19 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/zvelo/go-signalfx/sfxconfig"
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
 )
 
 // A Client is used to send datapoints to SignalFx
 type Client struct {
-	config *sfxconfig.Config
+	config *Config
 	tr     *http.Transport
 	client *http.Client
 }
 
-// New returns a new Client
-func New(config *sfxconfig.Config) *Client {
+// NewClient returns a new Client
+func NewClient(config *Config) *Client {
 	tr := config.Transport()
 
 	return &Client{
@@ -35,7 +34,7 @@ func (c *Client) Submit(ctx context.Context, dps *sfxproto.DataPoints) error {
 		return ctx.Err()
 	}
 
-	jsonBytes, err := dps.Marshal(c.config)
+	jsonBytes, err := dps.Marshal()
 	if err != nil {
 		return ErrMarshal(err)
 	}
