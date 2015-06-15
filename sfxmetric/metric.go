@@ -15,7 +15,7 @@ var (
 )
 
 // A Metric is a light wrapper around sfxproto.DataPoint. It adds the ability to
-// set values asynchronously by using Getter values. Additionally, all
+// set values via callback by using the Getter Interface. Additionally, all
 // operations on it are goroutine/thread safe.
 type Metric struct {
 	dp   *sfxproto.DataPoint
@@ -111,6 +111,8 @@ func (m *Metric) Dimensions() sfxproto.Dimensions {
 
 // StrValue returns the string value of the Datum of the underlying DataPoint
 func (m *Metric) StrValue() string {
+	m.update() // ignore error as it is reflected in the returned value
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -119,6 +121,8 @@ func (m *Metric) StrValue() string {
 
 // IntValue returns the integer value of the Datum of the underlying DataPoint
 func (m *Metric) IntValue() int64 {
+	m.update() // ignore error as it is reflected in the returned value
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -127,6 +131,8 @@ func (m *Metric) IntValue() int64 {
 
 // DoubleValue returns the integer value of the Datum of the underlying DataPoint
 func (m *Metric) DoubleValue() float64 {
+	m.update() // ignore error as it is reflected in the returned value
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 

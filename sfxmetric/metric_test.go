@@ -138,7 +138,7 @@ func TestMetric(t *testing.T) {
 			}), nil)
 			So(c, ShouldNotBeNil)
 			So(err, ShouldBeNil)
-			So(c.IntValue(), ShouldEqual, 1)
+			So(c.IntValue(), ShouldEqual, 0)
 
 			err = c.update()
 			So(err, ShouldNotBeNil)
@@ -160,4 +160,24 @@ func TestMetric(t *testing.T) {
 			So(c.Time().Equal(t), ShouldBeTrue)
 		})
 	})
+}
+
+func ExampleValueGetter() {
+	val := 5
+	cumulative, _ := NewCumulative("cumulative", ValueGetter(&val), nil)
+
+	val = 9
+	fmt.Println(cumulative.IntValue())
+	// Output: 9
+}
+
+func ExampleGetterFunc() {
+	val := 5
+	count, _ := NewGauge("count", GetterFunc(func() (interface{}, error) {
+		return val, nil
+	}), nil)
+
+	val++
+	fmt.Println(count.IntValue())
+	// Output: 6
 }
