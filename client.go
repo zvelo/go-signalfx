@@ -30,7 +30,9 @@ func NewClient(config *Config) *Client {
 
 // Submit forwards raw datapoints to SignalFx
 func (c *Client) Submit(ctx context.Context, dps *sfxproto.DataPoints) error {
-	if ctx.Err() != nil {
+	if ctx == nil {
+		ctx = context.Background()
+	} else if ctx.Err() != nil {
 		return ctx.Err()
 	}
 

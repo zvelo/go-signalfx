@@ -20,15 +20,62 @@ func NewMetrics(l int) *Metrics {
 }
 
 // Add a Metric to the set
-func (ms *Metrics) Add(m *Metric) *Metrics {
-	if m != nil {
-		ms.lock.Lock()
-		defer ms.lock.Unlock()
+func (ms *Metrics) Add(vals ...*Metric) *Metrics {
+	ms.lock.Lock()
+	defer ms.lock.Unlock()
 
-		ms.metrics[m] = nil
+	for _, m := range vals {
+		if m != nil {
+			ms.metrics[m] = nil
+		}
 	}
 
 	return ms
+}
+
+// Concat appends the passed metrics to the source object
+func (ms *Metrics) Concat(val *Metrics) {
+	if val == nil {
+		return
+	}
+
+	val.lock.Lock()
+	defer val.lock.Unlock()
+
+	for m := range val.metrics {
+		ms.Add(m)
+	}
+}
+
+// List returns a slice of a copy of all of the metrics contained in Metrics
+func (ms *Metrics) List() []*Metric {
+	ret := make([]*Metric, 0, ms.Len())
+
+	ms.lock.Lock()
+	defer ms.lock.Unlock()
+
+	for m := range ms.metrics {
+		ret = append(ret, m.Clone())
+	}
+
+	return ret
+}
+
+// Clone makes a copy of the metric. It copies the underlying metric pointers
+// and does not do a deep copy of their values.
+func (ms *Metrics) Clone() *Metrics {
+	ret := &Metrics{
+		metrics: make(map[*Metric]interface{}, ms.Len()),
+	}
+
+	ms.lock.Lock()
+	defer ms.lock.Unlock()
+
+	for m := range ms.metrics {
+		ret.metrics[m] = nil
+	}
+
+	return ret
 }
 
 // Remove Metric(s) from the set. The match is by testing for pointer

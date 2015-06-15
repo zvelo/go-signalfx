@@ -31,37 +31,37 @@ func TestGoMetrics(t *testing.T) {
 
 		gometrics := NewGoMetrics(reporter)
 
-		dps, err := reporter.Report(context.Background())
+		metrics, err := reporter.Report(context.Background())
 		So(err, ShouldBeNil)
-		So(dps, ShouldNotBeNil)
+		So(metrics, ShouldNotBeNil)
 
-		So(dps.Len(), ShouldEqual, 30)
+		So(metrics.Len(), ShouldEqual, 30)
 
-		testMetric := func(dp *sfxproto.DataPoint, t sfxproto.MetricType) {
-			So(dp.MetricType, ShouldEqual, t)
-			So(dp.Time().Before(time.Now()), ShouldBeTrue)
-			So(len(dp.Dimensions), ShouldEqual, 2)
+		testMetric := func(m *Metric, t sfxproto.MetricType) {
+			So(m.Type(), ShouldEqual, t)
+			So(m.Time().Before(time.Now()), ShouldBeTrue)
+			So(len(m.Dimensions()), ShouldEqual, 2)
 
-			for _, dp := range dp.Dimensions {
-				switch dp.Key {
+			for key, value := range m.Dimensions() {
+				switch key {
 				case "instance":
-					So(dp.Value, ShouldEqual, "global_stats")
+					So(value, ShouldEqual, "global_stats")
 				case "stattype":
-					So(dp.Value, ShouldEqual, "golang_sys")
+					So(value, ShouldEqual, "golang_sys")
 				default:
-					So(dp.Value, ShouldEqual, forceFail)
+					So(value, ShouldEqual, forceFail)
 				}
 			}
 
-			So(dp.Value, ShouldNotBeNil)
-			So(dp.Value.StrValue, ShouldEqual, "")
-			So(dp.Value.DoubleValue, ShouldEqual, 0)
-			So(dp.Value.IntValue, ShouldBeGreaterThanOrEqualTo, 0)
+			So(m.dp.Value, ShouldNotBeNil)
+			So(m.StrValue(), ShouldEqual, "")
+			So(m.DoubleValue(), ShouldEqual, 0)
+			So(m.IntValue(), ShouldBeGreaterThanOrEqualTo, 0)
 		}
 
-		list := dps.List()
-		for _, dp := range list {
-			switch dp.Metric {
+		list := metrics.List()
+		for _, m := range list {
+			switch m.Name() {
 			case "Alloc",
 				"Sys",
 				"HeapAlloc",
@@ -86,11 +86,11 @@ func TestGoMetrics(t *testing.T) {
 				"process.uptime.ns",
 				"num_cpu",
 				"num_goroutine":
-				testMetric(dp, sfxproto.MetricType_GAUGE)
+				testMetric(m, sfxproto.MetricType_GAUGE)
 			case "TotalAlloc", "Lookups", "Mallocs", "Frees", "PauseTotalNs", "num_cgo_call":
-				testMetric(dp, sfxproto.MetricType_CUMULATIVE_COUNTER)
+				testMetric(m, sfxproto.MetricType_CUMULATIVE_COUNTER)
 			default:
-				So(dp.Metric, ShouldEqual, forceFail)
+				So(m.Name(), ShouldEqual, forceFail)
 			}
 		}
 

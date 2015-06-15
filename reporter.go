@@ -7,9 +7,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-// DataPointCallback is a functional callback that can be passed to DataPointCallback as a way
+// MetricCallback is a functional callback that can be passed to MetricCallback as a way
 // to have the caller calculate and return their own datapoints
-type DataPointCallback func(defaultDims sfxproto.Dimensions) *sfxproto.DataPoints
+type MetricCallback func(defaultDims sfxproto.Dimensions) *Metrics
 
 type Reporter struct {
 	client             *Client
@@ -17,7 +17,7 @@ type Reporter struct {
 	metrics            *Metrics
 	buckets            map[*Bucket]interface{}
 	preReportCallbacks []func()
-	dataPointCallbacks []DataPointCallback
+	metricCallbacks    []MetricCallback
 	lock               sync.Mutex
 }
 
@@ -26,10 +26,11 @@ func NewReporter(config *Config, defaultDimensions sfxproto.Dimensions) *Reporte
 		client:            NewClient(config),
 		defaultDimensions: defaultDimensions,
 		metrics:           NewMetrics(0),
+		buckets:           map[*Bucket]interface{}{},
 	}
 }
 
-func (r *Reporter) Bucket(metricName string, dimensions sfxproto.Dimensions) *Bucket {
+func (r *Reporter) NewBucket(metricName string, dimensions sfxproto.Dimensions) *Bucket {
 	ret := NewBucket(metricName, dimensions)
 
 	r.lock.Lock()
@@ -39,22 +40,30 @@ func (r *Reporter) Bucket(metricName string, dimensions sfxproto.Dimensions) *Bu
 	return ret
 }
 
-func (r *Reporter) Cumulative(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
+func (r *Reporter) NewCumulative(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
 	m, _ := NewCumulative(metricName, val, r.defaultDimensions.Concat(dims))
 	r.metrics.Add(m)
 	return m
 }
 
-func (r *Reporter) Gauge(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
+func (r *Reporter) NewGauge(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
 	m, _ := NewGauge(metricName, val, r.defaultDimensions.Concat(dims))
 	r.metrics.Add(m)
 	return m
 }
 
-func (r *Reporter) Counter(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
+func (r *Reporter) NewCounter(metricName string, val interface{}, dims sfxproto.Dimensions) *Metric {
 	m, _ := NewCounter(metricName, val, r.defaultDimensions.Concat(dims))
 	r.metrics.Add(m)
 	return m
+}
+
+func (r *Reporter) AddMetric(vals ...*Metric) {
+	r.metrics.Add(vals...)
+}
+
+func (r *Reporter) AddMetrics(ms *Metrics) {
+	r.metrics.Concat(ms)
 }
 
 func (r *Reporter) RemoveMetric(ms ...*Metric) {
@@ -82,15 +91,17 @@ func (r *Reporter) AddPreReportCallback(f func()) {
 	r.preReportCallbacks = append(r.preReportCallbacks, f)
 }
 
-// AddDataPointCallback adds a callback that itself will generate datapoints to report
-func (r *Reporter) AddDataPointCallback(f DataPointCallback) {
+// AddMetricsCallback adds a callback that itself will generate datapoints to report
+func (r *Reporter) AddMetricsCallback(f MetricCallback) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	r.dataPointCallbacks = append(r.dataPointCallbacks, f)
+	r.metricCallbacks = append(r.metricCallbacks, f)
 }
 
-func (r *Reporter) Report(ctx context.Context) (*sfxproto.DataPoints, error) {
-	if ctx.Err() != nil {
+func (r *Reporter) Report(ctx context.Context) (*Metrics, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	} else if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 
@@ -101,26 +112,24 @@ func (r *Reporter) Report(ctx context.Context) (*sfxproto.DataPoints, error) {
 		f()
 	}
 
-	dps, err := r.metrics.DataPoints()
-	if err != nil {
-		return nil, err
-	}
+	ret := r.metrics.Clone()
 
-	for _, f := range r.dataPointCallbacks {
-		dps = dps.Concat(f(r.defaultDimensions))
+	for _, f := range r.metricCallbacks {
+		ret.Concat(f(r.defaultDimensions))
 	}
 
 	for b := range r.buckets {
-		tmp, err := b.Metrics(r.defaultDimensions).DataPoints()
-		if err != nil {
-			return nil, err
-		}
-		dps = dps.Concat(tmp)
+		ret.Concat(b.Metrics(r.defaultDimensions))
+	}
+
+	dps, err := ret.DataPoints()
+	if err != nil {
+		return nil, err
 	}
 
 	if err = r.client.Submit(ctx, dps); err != nil {
 		return nil, err
 	}
 
-	return dps, nil
+	return ret, nil
 }
