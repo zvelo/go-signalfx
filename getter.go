@@ -1,5 +1,7 @@
 package signalfx
 
+import "sync/atomic"
+
 // Getter is an interface that is used by Metric. It may return any kind of
 // integer, float, string or nil, including pointers. Any other type is invalid.
 type Getter interface {
@@ -32,4 +34,18 @@ type valueGetter struct {
 
 func (v valueGetter) Get() (interface{}, error) {
 	return v.value, nil
+}
+
+type Incrementer int64
+
+func (i *Incrementer) Set(value int64) {
+	atomic.StoreInt64((*int64)(i), value)
+}
+
+func (i *Incrementer) Inc(delta int64) int64 {
+	return atomic.AddInt64((*int64)(i), delta)
+}
+
+func (i *Incrementer) Get() (interface{}, error) {
+	return atomic.LoadInt64((*int64)(i)), nil
 }

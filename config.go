@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -58,13 +59,14 @@ func (c *Config) Transport() *http.Transport {
 	}
 }
 
-// NewConfig generates a new Config with default values
-func NewConfig(authToken string) *Config {
+// NewConfig generates a new Config with default values. If $SFX_API_TOKEN is
+// set in the environment, it will be used as the AuthToken.
+func NewConfig() *Config {
 	return &Config{
 		MaxIdleConnections: DefaultMaxIdleConnections,
 		TimeoutDuration:    DefaultTimeoutDuration,
 		URL:                DefaultURL,
 		UserAgent:          DefaultUserAgent,
-		AuthToken:          authToken,
+		AuthToken:          os.Getenv("SFX_API_TOKEN"),
 	}
 }

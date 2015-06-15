@@ -1,6 +1,7 @@
 package signalfx
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,15 +12,13 @@ import (
 )
 
 func TestReporter(t *testing.T) {
-	const authToken = "abc123"
-
 	Convey("Testing Reporter", t, func() {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(`"OK"`))
 		}))
 		defer ts.Close()
 
-		config := NewConfig(authToken)
+		config := NewConfig()
 		So(config, ShouldNotBeNil)
 
 		config.URL = ts.URL
@@ -38,17 +37,17 @@ func TestReporter(t *testing.T) {
 			So(reporter.metrics.Len(), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			cumulative := reporter.NewCumulative("cumulative", 0, nil)
+			cumulative := reporter.NewCumulative("cumulative", ValueGetter(0), nil)
 			So(cumulative, ShouldNotBeNil)
 			So(reporter.metrics.Len(), ShouldEqual, 1)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			gauge := reporter.NewGauge("gauge", 0, nil)
+			gauge := reporter.NewGauge("gauge", ValueGetter(0), nil)
 			So(gauge, ShouldNotBeNil)
 			So(reporter.metrics.Len(), ShouldEqual, 2)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			counter := reporter.NewCounter("counter", 0, nil)
+			counter := reporter.NewCounter("counter", ValueGetter(0), nil)
 			So(counter, ShouldNotBeNil)
 			So(reporter.metrics.Len(), ShouldEqual, 3)
 			So(len(reporter.buckets), ShouldEqual, 1)
@@ -96,13 +95,13 @@ func TestReporter(t *testing.T) {
 			So(reporter.metrics.Len(), ShouldEqual, 0)
 
 			addMetricF := func(dims sfxproto.Dimensions) *Metrics {
-				count0, err := NewCounter("count0", 0, nil)
+				count0, err := NewCounter("count0", ValueGetter(0), nil)
 				if err != nil {
 					return nil
 				}
 				So(count0, ShouldNotBeNil)
 
-				count1, err := NewCounter("count1", 0, nil)
+				count1, err := NewCounter("count1", ValueGetter(0), nil)
 				if err != nil {
 					return nil
 				}
@@ -150,4 +149,40 @@ func TestReporter(t *testing.T) {
 			So(ms, ShouldBeNil)
 		})
 	})
+}
+
+func ExampleReporter() {
+	// auth token will be taken from $SFX_API_TOKEN if it exists
+	// for this example, it must be set correctly
+	config := NewConfig()
+	reporter := NewReporter(config, map[string]string{
+		"test_dimension0": "value0",
+		"test_dimension1": "value1",
+	})
+
+	inc := reporter.NewIncrementer("TestIncrementer", map[string]string{
+		"test_counter_dimension0": "counter0",
+		"test_counter_dimension1": "counter1",
+	})
+
+	cval := 0
+	cumulative := reporter.NewCumulative("TestCumulative", ValueGetter(&cval), map[string]string{
+		"test_cumulative_dimension0": "cumulative0",
+		"test_cumulative_dimension1": "cumulative1",
+	})
+
+	inc.Inc(1)
+	inc.Inc(5)
+	cval = 1
+
+	_, err := reporter.Report(context.Background())
+
+	fmt.Printf("incrementer: %d\n", *inc)
+	fmt.Printf("cumulative: %d\n", cumulative.IntValue())
+	fmt.Printf("error: %v\n", err)
+
+	// Output:
+	// incrementer: 6
+	// cumulative: 1
+	// error: <nil>
 }

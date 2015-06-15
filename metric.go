@@ -203,6 +203,7 @@ func (m *Metric) Set(val interface{}) error {
 	defer m.lock.Unlock()
 
 	m.dp.Value.Reset()
+	m.get = nil
 
 	if val == nil {
 		return nil
@@ -212,6 +213,7 @@ func (m *Metric) Set(val interface{}) error {
 
 	if get, ok := val.(Getter); ok {
 		m.get = get
+
 		val, err = m.get.Get()
 		if err != nil {
 			return err

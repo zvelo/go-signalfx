@@ -12,7 +12,6 @@ import (
 )
 
 func TestGoMetrics(t *testing.T) {
-	const authToken = "abc123"
 	const forceFail = false
 
 	Convey("Testing GoMetrics", t, func() {
@@ -21,7 +20,7 @@ func TestGoMetrics(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		config := NewConfig(authToken)
+		config := NewConfig()
 		So(config, ShouldNotBeNil)
 
 		config.URL = ts.URL

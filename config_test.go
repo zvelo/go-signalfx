@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 
 func TestConfig(t *testing.T) {
 	Convey("Testing Config", t, func() {
-		c := NewConfig("")
+		c := NewConfig()
 
 		Convey("default values should be correct", func() {
 			So(DefaultMaxIdleConnections, ShouldEqual, 2)
@@ -51,12 +52,13 @@ func TestConfig(t *testing.T) {
 		})
 
 		Convey("clone should work", func() {
-			authToken := "sometoken"
+			c0 := NewConfig()
 
-			c0 := NewConfig(authToken)
-			So(c0.AuthToken, ShouldEqual, authToken)
+			if envToken := os.Getenv("SFX_API_TOKEN"); len(envToken) > 0 {
+				So(c0.AuthToken, ShouldEqual, envToken)
+			}
+
 			c1 := c0.Clone()
-
 			So(c0, ShouldNotEqual, c1)
 			So(c0.MaxIdleConnections, ShouldEqual, c1.MaxIdleConnections)
 			So(c0.TimeoutDuration, ShouldEqual, c1.TimeoutDuration)
