@@ -93,21 +93,76 @@ func (m *Metric) SetTime(t time.Time) {
 
 // Name returns the name of the Metric
 func (m *Metric) Name() string {
-	// read-only, no need to lock
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	return m.dp.Metric
+}
+
+// SetName sets the metric name
+func (m *Metric) SetName(name string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.dp.Metric = name
 }
 
 // Type returns the MetricType of the Metric
 func (m *Metric) Type() sfxproto.MetricType {
-	// read-only, no need to lock
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	return m.dp.MetricType
 }
 
 // Dimensions returns a copy of the dimensions of the Metric. Changes are not
 // reflected inside the Metric itself.
 func (m *Metric) Dimensions() sfxproto.Dimensions {
-	// read-only, no need to lock
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	return sfxproto.NewDimensions(m.dp.Dimensions)
+}
+
+// SetDimension adds or overwrites the dimension at key with value
+func (m *Metric) SetDimension(key, value string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	for _, dim := range m.dp.Dimensions {
+		if dim.Key == key {
+			dim.Value = value
+			return
+		}
+	}
+
+	m.dp.Dimensions = append(m.dp.Dimensions, &sfxproto.Dimension{
+		Key:   key,
+		Value: value,
+	})
+}
+
+// SetDimensions adds or overwrites multiple dimensions
+func (m *Metric) SetDimensions(dims sfxproto.Dimensions) {
+	for key, value := range dims {
+		m.SetDimension(key, value)
+	}
+}
+
+// RemoveDimension removes one or more dimensions with the given keys
+func (m *Metric) RemoveDimension(keys ...string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+Loop:
+	for _, key := range keys {
+		for i, dim := range m.dp.Dimensions {
+			if dim.Key == key {
+				m.dp.Dimensions = append(m.dp.Dimensions[:i], m.dp.Dimensions[i+1:]...)
+				continue Loop
+			}
+		}
+	}
 }
 
 // StrValue returns the string value of the Datum of the underlying DataPoint

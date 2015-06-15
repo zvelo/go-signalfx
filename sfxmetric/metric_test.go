@@ -33,6 +33,9 @@ func TestMetric(t *testing.T) {
 
 			So(c.Equal(e), ShouldBeTrue)
 			So(e.Equal(c), ShouldBeTrue)
+
+			e.SetName("another_metric")
+			So(e.Name(), ShouldEqual, "another_metric")
 		})
 
 		Convey("created metric should have the correct value", func() {
@@ -158,6 +161,37 @@ func TestMetric(t *testing.T) {
 			c.SetTime(t)
 			So(c.dp.Timestamp, ShouldEqual, 1257894000000)
 			So(c.Time().Equal(t), ShouldBeTrue)
+		})
+
+		Convey("dimensions should work properly", func() {
+			g, err := NewGauge("gauge", 5, map[string]string{
+				"a": "1",
+				"b": "2",
+			})
+			So(err, ShouldBeNil)
+			So(g, ShouldNotBeNil)
+			So(len(g.Dimensions()), ShouldEqual, 2)
+
+			g.SetDimension("c", "3")
+			So(len(g.Dimensions()), ShouldEqual, 3)
+
+			g.SetDimension("c", "see")
+			So(len(g.Dimensions()), ShouldEqual, 3)
+
+			g.SetDimensions(map[string]string{
+				"d": "4",
+				"e": "5",
+			})
+			So(len(g.Dimensions()), ShouldEqual, 5)
+
+			g.RemoveDimension("b")
+			So(len(g.Dimensions()), ShouldEqual, 4)
+
+			g.RemoveDimension("b")
+			So(len(g.Dimensions()), ShouldEqual, 4)
+
+			g.RemoveDimension("d", "a")
+			So(len(g.Dimensions()), ShouldEqual, 2)
 		})
 	})
 }
