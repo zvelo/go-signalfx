@@ -60,7 +60,7 @@ func (r *Reporter) NewCounter(metric string, val interface{}, dims sfxproto.Dime
 
 func (r *Reporter) NewIncrementer(metric string, dims sfxproto.Dimensions) *Incrementer {
 	inc := NewIncrementer(0)
-	m, _ := NewCounter(metric, &inc, r.defaultDimensions.Concat(dims))
+	m, _ := NewCounter(metric, inc, r.defaultDimensions.Concat(dims))
 	if m == nil {
 		return nil
 	}
@@ -70,7 +70,7 @@ func (r *Reporter) NewIncrementer(metric string, dims sfxproto.Dimensions) *Incr
 
 func (r *Reporter) NewCumulativeIncrementer(metric string, dims sfxproto.Dimensions) *Incrementer {
 	inc := NewIncrementer(0)
-	m, _ := NewCumulative(metric, &inc, r.defaultDimensions.Concat(dims))
+	m, _ := NewCumulative(metric, inc, r.defaultDimensions.Concat(dims))
 	if m == nil {
 		return nil
 	}

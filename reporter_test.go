@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/kr/pretty"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
@@ -161,9 +160,15 @@ func ExampleReporter() {
 		"test_dimension1": "value1",
 	})
 
+	gval := 0
+	gauge := reporter.NewGauge("TestGauge", ValueGetter(&gval), map[string]string{
+		"test_gauge_dimension0": "gauge0",
+		"test_gauge_dimension1": "gauge1",
+	})
+
 	inc := reporter.NewIncrementer("TestIncrementer", map[string]string{
-		"test_counter_dimension0": "counter0",
-		"test_counter_dimension1": "counter1",
+		"test_incrementer_dimension0": "incrementer0",
+		"test_incrementer_dimension1": "incrementer1",
 	})
 
 	cval := 0
@@ -172,20 +177,21 @@ func ExampleReporter() {
 		"test_cumulative_dimension1": "cumulative1",
 	})
 
+	gval = 7
 	inc.Inc(1)
 	inc.Inc(5)
 	cval = 1
 
-	ms, err := reporter.Report(context.Background())
+	_, err := reporter.Report(context.Background())
 
+	fmt.Printf("gauge: %d\n", gauge.IntValue())
 	fmt.Printf("incrementer: %d\n", inc.Value())
 	fmt.Printf("cumulative: %d\n", cumulative.IntValue())
 	fmt.Printf("error: %v\n", err)
 
 	// Output:
+	// gauge: 7
 	// incrementer: 6
 	// cumulative: 1
 	// error: <nil>
-
-	pretty.Println(ms)
 }
