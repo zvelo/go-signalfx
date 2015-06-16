@@ -1,5 +1,7 @@
 package signalfx
 
+// TODO(jrubin) go back to atomic operations where possible
+
 import (
 	"math"
 	"sync"
@@ -8,7 +10,8 @@ import (
 )
 
 // A Bucket trakcs groups of values, reporting the min/max as gauges, and
-// count/sum/sum of squares as a cumulative counter
+// count/sum/sum of squares as a cumulative counter. All operations on Buckets
+// are goroutine safe.
 type Bucket struct {
 	metric       string
 	dimensions   sfxproto.Dimensions
@@ -28,6 +31,7 @@ func (b *Bucket) unlock() {
 	b.mu.Unlock()
 }
 
+// Metric returns the metric name of the Bucket
 func (b *Bucket) Metric() string {
 	b.lock()
 	defer b.unlock()
@@ -35,6 +39,7 @@ func (b *Bucket) Metric() string {
 	return b.metric
 }
 
+// SetMetric sets the metric name of the Bucket
 func (b *Bucket) SetMetric(name string) {
 	b.lock()
 	defer b.unlock()
@@ -42,6 +47,8 @@ func (b *Bucket) SetMetric(name string) {
 	b.metric = name
 }
 
+// Dimensions returns a copy of the dimensions of the Bucket. Changes are not
+// reflected inside the Bucket itself.
 func (b *Bucket) Dimensions() sfxproto.Dimensions {
 	b.lock()
 	defer b.unlock()
@@ -49,22 +56,27 @@ func (b *Bucket) Dimensions() sfxproto.Dimensions {
 	return b.dimensions.Clone()
 }
 
+// SetDimension adds or overwrites the dimension at key with value. If the key
+// or value is empty, no changes are made
 func (b *Bucket) SetDimension(key, value string) {
+	if key == "" || value == "" {
+		return
+	}
+
 	b.lock()
 	defer b.unlock()
 
 	b.dimensions[key] = value
 }
 
+// SetDimensions adds or overwrites multiple dimensions
 func (b *Bucket) SetDimensions(dims sfxproto.Dimensions) {
-	b.lock()
-	defer b.unlock()
-
 	for key, value := range dims {
-		b.dimensions[key] = value
+		b.SetDimension(key, value)
 	}
 }
 
+// RemoveDimension removes one or more dimensions with the given keys
 func (b *Bucket) RemoveDimension(keys ...string) {
 	b.lock()
 	defer b.unlock()
@@ -74,6 +86,7 @@ func (b *Bucket) RemoveDimension(keys ...string) {
 	}
 }
 
+// Count returns the number of items added to the Bucket
 func (b *Bucket) Count() int64 {
 	b.lock()
 	defer b.unlock()
@@ -81,6 +94,7 @@ func (b *Bucket) Count() int64 {
 	return b.count
 }
 
+// Min returns the lowest item added to the Bucket
 func (b *Bucket) Min() int64 {
 	b.lock()
 	defer b.unlock()
@@ -88,6 +102,7 @@ func (b *Bucket) Min() int64 {
 	return b.min
 }
 
+// Max returns the highest item added to the Bucket
 func (b *Bucket) Max() int64 {
 	b.lock()
 	defer b.unlock()
@@ -95,6 +110,7 @@ func (b *Bucket) Max() int64 {
 	return b.max
 }
 
+// Sum returns the sum of all items added to the Bucket
 func (b *Bucket) Sum() int64 {
 	b.lock()
 	defer b.unlock()
@@ -102,6 +118,7 @@ func (b *Bucket) Sum() int64 {
 	return b.sum
 }
 
+// SumOfSquares returns the sum of the square of all items added to the Bucket
 func (b *Bucket) SumOfSquares() int64 {
 	b.lock()
 	defer b.unlock()
@@ -109,6 +126,7 @@ func (b *Bucket) SumOfSquares() int64 {
 	return b.sumOfSquares
 }
 
+// NewBucket creates a new Bucket
 func NewBucket(metric string, dimensions sfxproto.Dimensions) *Bucket {
 	return &Bucket{
 		metric:     metric,
@@ -116,7 +134,7 @@ func NewBucket(metric string, dimensions sfxproto.Dimensions) *Bucket {
 	}
 }
 
-// Add an item to the bucket, later reporting the result in the next report
+// Add an item to the Bucket, later reporting the result in the next report
 // cycle.
 func (b *Bucket) Add(val int64) {
 	b.lock()
@@ -143,11 +161,12 @@ func (b *Bucket) Add(val int64) {
 
 // depends on outer lock
 func (b *Bucket) dimFor(defaultDims sfxproto.Dimensions, rollup string) sfxproto.Dimensions {
-	dims := defaultDims.Concat(b.dimensions)
+	dims := defaultDims.Append(b.dimensions)
 	dims["rollup"] = rollup
 	return dims
 }
 
+// CountDataPoint returns a DataPoint representing the Bucket's Count
 func (b *Bucket) CountDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock()
 	defer b.unlock()
@@ -156,6 +175,7 @@ func (b *Bucket) CountDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	return dp
 }
 
+// SumDataPoint returns a DataPoint representing the Bucket's Sum
 func (b *Bucket) SumDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock()
 	defer b.unlock()
@@ -164,6 +184,8 @@ func (b *Bucket) SumDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	return dp
 }
 
+// SumOfSquaresDataPoint returns a DataPoint representing the Bucket's
+// SumOfSquares
 func (b *Bucket) SumOfSquaresDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock()
 	defer b.unlock()
@@ -172,7 +194,9 @@ func (b *Bucket) SumOfSquaresDataPoint(defaultDims sfxproto.Dimensions) *DataPoi
 	return dp
 }
 
-// resets min
+// MinDataPoint returns a DataPoint representing the Bucket's Min. Note that
+// this resets the Min value. nil is returned if no items have been added to the
+// bucket since it was created or last reset.
 func (b *Bucket) MinDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock()
 	defer b.unlock()
@@ -188,7 +212,9 @@ func (b *Bucket) MinDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	return nil
 }
 
-// resets max
+// MaxDataPoint returns a DataPoint representing the Bucket's Max. Note that
+// this resets the Max value. nil is returned if no items have been added to the
+// bucket since it was created or last reset.
 func (b *Bucket) MaxDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock()
 	defer b.unlock()
@@ -204,7 +230,9 @@ func (b *Bucket) MaxDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	return nil
 }
 
-// resets min and max
+// DataPoints returns a DataPoints object with DataPoint values for Count, Sum,
+// SumOfSquares, Min and Max (if set). Note that this resets both the Min and
+// Max values.
 func (b *Bucket) DataPoints(defaultDims sfxproto.Dimensions) *DataPoints {
 	return NewDataPoints(5).
 		Add(b.CountDataPoint(defaultDims)).

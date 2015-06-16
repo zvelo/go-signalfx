@@ -125,8 +125,13 @@ func (dp *DataPoint) Dimensions() sfxproto.Dimensions {
 	return sfxproto.NewDimensions(dp.pdp.Dimensions)
 }
 
-// SetDimension adds or overwrites the dimension at key with value
+// SetDimension adds or overwrites the dimension at key with value. If the key
+// or value is empty, no changes are made
 func (dp *DataPoint) SetDimension(key, value string) {
+	if key == "" || value == "" {
+		return
+	}
+
 	dp.lock()
 	defer dp.unlock()
 

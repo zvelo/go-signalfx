@@ -41,8 +41,8 @@ func (dps *DataPoints) Add(vals ...*DataPoint) *DataPoints {
 	return dps
 }
 
-// Concat appends the passed datapoints to the source object
-func (dps *DataPoints) Concat(val *DataPoints) {
+// Append appends the passed datapoints to the source object
+func (dps *DataPoints) Append(val *DataPoints) {
 	if val == nil {
 		return
 	}

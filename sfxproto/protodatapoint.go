@@ -7,31 +7,35 @@ import (
 	"github.com/gogo/protobuf/proto"
 )
 
-func (dp *ProtoDataPoint) String() string {
+func (pdp *ProtoDataPoint) String() string {
 	metric := "<nil>"
-	if dp.Metric != nil {
-		metric = *dp.Metric
+	if pdp.Metric != nil {
+		metric = *pdp.Metric
 	}
 
-	return fmt.Sprintf("DP[%s\t%s\t%s\t%d\t%s]", metric, dp.Dimensions, dp.Value, dp.MetricType, dp.Time())
+	return fmt.Sprintf("DP[%s\t%s\t%s\t%d\t%s]", metric, pdp.Dimensions, pdp.Value, pdp.MetricType, pdp.Time())
 }
 
-func (dp *ProtoDataPoint) Time() time.Time {
-	if dp.Timestamp == nil {
+// Time returns the timestamp of the ProtoDataPoint
+func (pdp *ProtoDataPoint) Time() time.Time {
+	if pdp.Timestamp == nil {
 		return time.Now()
 	}
 
-	return time.Unix(0, *dp.Timestamp*int64(time.Millisecond))
+	return time.Unix(0, *pdp.Timestamp*int64(time.Millisecond))
 }
 
-func (dp *ProtoDataPoint) SetTime(t time.Time) {
-	dp.Timestamp = proto.Int64(t.UnixNano() / int64(time.Millisecond))
+// SetTime sets the timestamp of the ProtoDataPoint
+func (pdp *ProtoDataPoint) SetTime(t time.Time) {
+	pdp.Timestamp = proto.Int64(t.UnixNano() / int64(time.Millisecond))
 }
 
-func (dp *ProtoDataPoint) Clone() *ProtoDataPoint {
-	return proto.Clone(dp).(*ProtoDataPoint)
+// Clone returns a deep copy of the ProtoDataPoint
+func (pdp *ProtoDataPoint) Clone() *ProtoDataPoint {
+	return proto.Clone(pdp).(*ProtoDataPoint)
 }
 
-func (dp *ProtoDataPoint) Equal(val *ProtoDataPoint) bool {
-	return proto.Equal(dp, val)
+// Equal returns whether or not two ProtoDataPoint objects are equal
+func (pdp *ProtoDataPoint) Equal(val *ProtoDataPoint) bool {
+	return proto.Equal(pdp, val)
 }

@@ -13,7 +13,7 @@ var (
 	ErrMarshalNoData = fmt.Errorf("no data to marshal")
 )
 
-// ProtoDataPoints is a DataPoint list
+// ProtoDataPoints is a set of ProtoDataPoint objects
 type ProtoDataPoints struct {
 	data map[*ProtoDataPoint]interface{}
 	lock sync.Mutex
@@ -26,6 +26,7 @@ func NewProtoDataPoints(l int) *ProtoDataPoints {
 	}
 }
 
+// Len returns the number of ProtoDataPoint objects the ProtoDataPoints object contains
 func (pdps *ProtoDataPoints) Len() int {
 	pdps.lock.Lock()
 	defer pdps.lock.Unlock()
@@ -33,23 +34,21 @@ func (pdps *ProtoDataPoints) Len() int {
 	return len(pdps.data)
 }
 
-// returns copies for thread safety reasons
+// List returns a slice of copies of each ProtoDataPoint
 func (pdps *ProtoDataPoints) List() []*ProtoDataPoint {
 	ret := make([]*ProtoDataPoint, 0, pdps.Len())
 
 	pdps.lock.Lock()
 	defer pdps.lock.Unlock()
 
-	for dp := range pdps.data {
-		ret = append(ret, dp.Clone())
+	for pdp := range pdps.data {
+		ret = append(ret, pdp.Clone())
 	}
 
 	return ret
 }
 
-// Marshal filters out metrics with empty names, filters out dimensions with an
-// empty or duplicate key or value and then marshals the protobuf to a byte
-// slice.
+// Marshal a DataPointUploadMessage from the ProtoDataPoints object
 func (pdps *ProtoDataPoints) Marshal() ([]byte, error) {
 	if pdps.Len() == 0 {
 		return nil, ErrMarshalNoData
@@ -72,20 +71,24 @@ func (pdps *ProtoDataPoints) Add(dataPoint *ProtoDataPoint) *ProtoDataPoints {
 	return pdps
 }
 
-func (pdps *ProtoDataPoints) Concat(val *ProtoDataPoints) *ProtoDataPoints {
+// Append appends the passed ProtoDataPoints to the source object
+func (pdps *ProtoDataPoints) Append(val *ProtoDataPoints) *ProtoDataPoints {
 	val.lock.Lock()
 	defer val.lock.Unlock()
 
-	for dp := range val.data {
-		pdps.Add(dp)
+	for pdp := range val.data {
+		pdps.Add(pdp)
 	}
 
 	return pdps
 }
 
-func (pdps *ProtoDataPoints) Remove(val *ProtoDataPoint) {
+// Remove ProtoDataPoint(s) from the set
+func (pdps *ProtoDataPoints) Remove(vals ...*ProtoDataPoint) {
 	pdps.lock.Lock()
 	defer pdps.lock.Unlock()
 
-	delete(pdps.data, val)
+	for _, val := range vals {
+		delete(pdps.data, val)
+	}
 }

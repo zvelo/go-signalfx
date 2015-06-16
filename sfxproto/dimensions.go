@@ -10,6 +10,7 @@ import (
 // Dimensions is map that can be converted into []*Dimension
 type Dimensions map[string]string
 
+// List returns a slice of all tracked Dimension objects
 func (ds Dimensions) List() []*Dimension {
 	ret := make([]*Dimension, 0, len(ds))
 
@@ -27,7 +28,8 @@ func (ds Dimensions) List() []*Dimension {
 	return ret
 }
 
-func (ds Dimensions) Concat(val Dimensions) Dimensions {
+// Append returns a new Dimensions object with the values of both objects merged
+func (ds Dimensions) Append(val Dimensions) Dimensions {
 	ret := make(Dimensions, len(ds)+len(val))
 
 	for key, val := range ds {
@@ -51,6 +53,7 @@ func massageKey(str string) string {
 	}, str)
 }
 
+// Clone makes a copy of the given Dimensions object
 func (ds Dimensions) Clone() Dimensions {
 	ret := Dimensions{}
 	for key, val := range ds {
@@ -59,7 +62,13 @@ func (ds Dimensions) Clone() Dimensions {
 	return ret
 }
 
+// NewDimensions creates a new Dimensions object from a slice of Dimension
+// objects
 func NewDimensions(dims []*Dimension) Dimensions {
+	if dims == nil {
+		return Dimensions{}
+	}
+
 	ret := make(Dimensions, len(dims))
 
 	for _, dim := range dims {

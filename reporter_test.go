@@ -150,7 +150,8 @@ func TestReporter(t *testing.T) {
 		})
 
 		Convey("incrementers should work", func() {
-			inc := r.NewInc("Incrementer", nil)
+			inc, dp := r.NewInc("Incrementer", nil)
+			So(dp, ShouldNotBeNil)
 			So(inc, ShouldNotBeNil)
 			So(r.datapoints.Len(), ShouldEqual, 1)
 			So(len(r.buckets), ShouldEqual, 0)
@@ -159,20 +160,23 @@ func TestReporter(t *testing.T) {
 			v, err := inc.Get()
 			So(err, ShouldBeNil)
 			So(v, ShouldEqual, 0)
+			So(inc.Value(), ShouldEqual, dp.IntValue())
 
 			inc.Set(5)
 			So(inc.Value(), ShouldEqual, 5)
 			v, err = inc.Get()
 			So(err, ShouldBeNil)
 			So(v, ShouldEqual, 5)
+			So(inc.Value(), ShouldEqual, dp.IntValue())
 
 			inc.Inc(1)
 			So(inc.Value(), ShouldEqual, 6)
 			v, err = inc.Get()
 			So(err, ShouldBeNil)
 			So(v, ShouldEqual, 6)
+			So(inc.Value(), ShouldEqual, dp.IntValue())
 
-			inc = r.NewCumulativeInc("CumulativeIncrementer", nil)
+			inc, dp = r.NewCumulativeInc("CumulativeIncrementer", nil)
 			So(inc, ShouldNotBeNil)
 			So(r.datapoints.Len(), ShouldEqual, 2)
 			So(len(r.buckets), ShouldEqual, 0)
@@ -181,18 +185,21 @@ func TestReporter(t *testing.T) {
 			v, err = inc.Get()
 			So(err, ShouldBeNil)
 			So(v, ShouldEqual, 0)
+			So(inc.Value(), ShouldEqual, dp.IntValue())
 
 			inc.Set(5)
 			So(inc.Value(), ShouldEqual, 5)
 			v, err = inc.Get()
 			So(err, ShouldBeNil)
 			So(v, ShouldEqual, 5)
+			So(inc.Value(), ShouldEqual, dp.IntValue())
 
 			inc.Inc(1)
 			So(inc.Value(), ShouldEqual, 6)
 			v, err = inc.Get()
 			So(err, ShouldBeNil)
 			So(v, ShouldEqual, 6)
+			So(inc.Value(), ShouldEqual, dp.IntValue())
 		})
 	})
 }
@@ -212,7 +219,7 @@ func ExampleReporter() {
 		"test_gauge_dimension1": "gauge1",
 	})
 
-	inc := r.NewInc("TestIncrementer", map[string]string{
+	inc, _ := r.NewInc("TestIncrementer", map[string]string{
 		"test_incrementer_dimension0": "incrementer0",
 		"test_incrementer_dimension1": "incrementer1",
 	})
