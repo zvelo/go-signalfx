@@ -21,6 +21,22 @@ func TestBucket(t *testing.T) {
 
 		Convey("dimension operations should work", func() {
 			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{"c": "3"})
+
+			b.SetDimension("a", "")
+			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{
+				"c": "3",
+			})
+
+			b.SetDimension("", "1")
+			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{
+				"c": "3",
+			})
+
+			b.SetDimension("", "")
+			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{
+				"c": "3",
+			})
+
 			b.SetDimension("a", "1")
 			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{
 				"a": "1",

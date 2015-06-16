@@ -172,6 +172,15 @@ func TestDataPoint(t *testing.T) {
 			So(g, ShouldNotBeNil)
 			So(len(g.Dimensions()), ShouldEqual, 2)
 
+			g.SetDimension("", "3")
+			So(len(g.Dimensions()), ShouldEqual, 2)
+
+			g.SetDimension("c", "")
+			So(len(g.Dimensions()), ShouldEqual, 2)
+
+			g.SetDimension("", "")
+			So(len(g.Dimensions()), ShouldEqual, 2)
+
 			g.SetDimension("c", "3")
 			So(len(g.Dimensions()), ShouldEqual, 3)
 
