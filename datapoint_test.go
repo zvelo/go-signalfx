@@ -9,13 +9,13 @@ import (
 	"github.com/zvelo/go-signalfx/sfxproto"
 )
 
-func TestMetric(t *testing.T) {
-	Convey("Testing Metric", t, func() {
+func TestDataPoint(t *testing.T) {
+	Convey("Testing DataPoint", t, func() {
 		Convey("basic functionality", func() {
 			c, err := NewCounter("count", 2, nil)
 			So(err, ShouldBeNil)
 			So(c.IntValue(), ShouldEqual, 2)
-			So(c.Name(), ShouldEqual, "count")
+			So(c.Metric(), ShouldEqual, "count")
 			So(c.Time().Before(time.Now()), ShouldBeTrue)
 			So(c.Type(), ShouldEqual, sfxproto.MetricType_COUNTER)
 
@@ -27,18 +27,18 @@ func TestMetric(t *testing.T) {
 			So(e, ShouldNotEqual, c)
 			So(e.dp, ShouldNotEqual, c.dp)
 			So(e.IntValue(), ShouldEqual, 2)
-			So(e.Name(), ShouldEqual, "count")
+			So(e.Metric(), ShouldEqual, "count")
 			So(e.Time().Equal(c.Time()), ShouldBeTrue)
 			So(e.Type(), ShouldEqual, sfxproto.MetricType_COUNTER)
 
 			So(c.Equal(e), ShouldBeTrue)
 			So(e.Equal(c), ShouldBeTrue)
 
-			e.SetName("another_metric")
-			So(e.Name(), ShouldEqual, "another_metric")
+			e.SetMetric("another_metric")
+			So(e.Metric(), ShouldEqual, "another_metric")
 		})
 
-		Convey("created metric should have the correct value", func() {
+		Convey("created datapoint should have the correct value", func() {
 			m0, err := NewCounter("count", 3, nil)
 			So(err, ShouldBeNil)
 			So(m0, ShouldNotBeNil)
@@ -154,12 +154,12 @@ func TestMetric(t *testing.T) {
 
 			t := time.Unix(0, 0)
 			c.SetTime(t)
-			So(c.dp.Timestamp, ShouldEqual, 0)
+			So(*c.dp.Timestamp, ShouldEqual, 0)
 			So(c.Time().Equal(t), ShouldBeTrue)
 
 			t = time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
 			c.SetTime(t)
-			So(c.dp.Timestamp, ShouldEqual, 1257894000000)
+			So(*c.dp.Timestamp, ShouldEqual, 1257894000000)
 			So(c.Time().Equal(t), ShouldBeTrue)
 		})
 

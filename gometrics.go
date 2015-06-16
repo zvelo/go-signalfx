@@ -9,8 +9,8 @@ import (
 
 // GoMetrics gathers and reports generally useful go system stats for the reporter
 type GoMetrics struct {
-	metrics  *Metrics
-	reporter *Reporter
+	datapoints *DataPoints
+	reporter   *Reporter
 }
 
 // NewGoMetrics registers the reporter to report go system metrics
@@ -26,7 +26,7 @@ func NewGoMetrics(reporter *Reporter) *GoMetrics {
 		reporter: reporter,
 	}
 
-	ret.metrics = NewMetrics(30).
+	ret.datapoints = NewDataPoints(30).
 		Add(reporter.NewGauge("Alloc", ValueGetter(&mstat.Alloc), dims)).
 		Add(reporter.NewCumulative("TotalAlloc", ValueGetter(&mstat.TotalAlloc), dims)).
 		Add(reporter.NewGauge("Sys", ValueGetter(&mstat.Sys), dims)).
@@ -68,6 +68,6 @@ func NewGoMetrics(reporter *Reporter) *GoMetrics {
 // Close the metric source and will stop reporting these system stats to the
 // reporter. Implements the io.Closer interface.
 func (g *GoMetrics) Close() error {
-	g.reporter.RemoveMetrics(g.metrics)
+	g.reporter.RemoveDataPoints(g.datapoints)
 	return nil
 }

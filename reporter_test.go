@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/kr/pretty"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
@@ -26,75 +27,75 @@ func TestReporter(t *testing.T) {
 		reporter := NewReporter(config, nil)
 		So(reporter, ShouldNotBeNil)
 
-		So(reporter.metrics.Len(), ShouldEqual, 0)
+		So(reporter.datapoints.Len(), ShouldEqual, 0)
 		So(len(reporter.buckets), ShouldEqual, 0)
 
-		Convey("working with metrics", func() {
-			// getting metrics
+		Convey("working with datapoints", func() {
+			// getting datapoints
 
 			bucket := reporter.NewBucket("bucket", nil)
 			So(bucket, ShouldNotBeNil)
-			So(reporter.metrics.Len(), ShouldEqual, 0)
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
 			cumulative := reporter.NewCumulative("cumulative", ValueGetter(0), nil)
 			So(cumulative, ShouldNotBeNil)
-			So(reporter.metrics.Len(), ShouldEqual, 1)
+			So(reporter.datapoints.Len(), ShouldEqual, 1)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
 			gauge := reporter.NewGauge("gauge", ValueGetter(0), nil)
 			So(gauge, ShouldNotBeNil)
-			So(reporter.metrics.Len(), ShouldEqual, 2)
+			So(reporter.datapoints.Len(), ShouldEqual, 2)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
 			counter := reporter.NewCounter("counter", ValueGetter(0), nil)
 			So(counter, ShouldNotBeNil)
-			So(reporter.metrics.Len(), ShouldEqual, 3)
+			So(reporter.datapoints.Len(), ShouldEqual, 3)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			// removing metrics
+			// removing datapoints
 
-			reporter.RemoveMetric(cumulative)
-			So(reporter.metrics.Len(), ShouldEqual, 2)
+			reporter.RemoveDataPoint(cumulative)
+			So(reporter.datapoints.Len(), ShouldEqual, 2)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			reporter.RemoveMetric(cumulative)
-			So(reporter.metrics.Len(), ShouldEqual, 2)
+			reporter.RemoveDataPoint(cumulative)
+			So(reporter.datapoints.Len(), ShouldEqual, 2)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			reporter.RemoveMetric(gauge, counter)
-			So(reporter.metrics.Len(), ShouldEqual, 0)
+			reporter.RemoveDataPoint(gauge, counter)
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			reporter.AddMetric(gauge)
-			So(reporter.metrics.Len(), ShouldEqual, 1)
+			reporter.AddDataPoint(gauge)
+			So(reporter.datapoints.Len(), ShouldEqual, 1)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			reporter.AddMetric(cumulative, counter, gauge)
-			So(reporter.metrics.Len(), ShouldEqual, 3)
+			reporter.AddDataPoint(cumulative, counter, gauge)
+			So(reporter.datapoints.Len(), ShouldEqual, 3)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			metrics := NewMetrics(3)
-			metrics.Add(cumulative, gauge, counter)
-			So(metrics.Len(), ShouldEqual, 3)
+			datapoints := NewDataPoints(3)
+			datapoints.Add(cumulative, gauge, counter)
+			So(datapoints.Len(), ShouldEqual, 3)
 
-			reporter.RemoveMetrics(metrics)
-			So(reporter.metrics.Len(), ShouldEqual, 0)
+			reporter.RemoveDataPoints(datapoints)
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
 			reporter.RemoveBucket(bucket)
-			So(reporter.metrics.Len(), ShouldEqual, 0)
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 0)
 
-			reporter.AddMetrics(metrics)
-			So(reporter.metrics.Len(), ShouldEqual, 3)
+			reporter.AddDataPoints(datapoints)
+			So(reporter.datapoints.Len(), ShouldEqual, 3)
 			So(len(reporter.buckets), ShouldEqual, 0)
 		})
 
 		Convey("adding datapoint callbacks", func() {
-			So(reporter.metrics.Len(), ShouldEqual, 0)
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
 
-			addMetricF := func(dims sfxproto.Dimensions) *Metrics {
+			addDataPointF := func(dims sfxproto.Dimensions) *DataPoints {
 				count0, err := NewCounter("count0", ValueGetter(0), nil)
 				if err != nil {
 					return nil
@@ -107,23 +108,23 @@ func TestReporter(t *testing.T) {
 				}
 
 				So(count1, ShouldNotBeNil)
-				return NewMetrics(2).
+				return NewDataPoints(2).
 					Add(count0).
 					Add(count1)
 			}
 
-			addMetricErrF := func(dims sfxproto.Dimensions) *Metrics {
+			addDataPointErrF := func(dims sfxproto.Dimensions) *DataPoints {
 				return nil
 			}
 
-			reporter.AddMetricsCallback(addMetricF)
-			reporter.AddMetricsCallback(addMetricErrF)
+			reporter.AddDataPointsCallback(addDataPointF)
+			reporter.AddDataPointsCallback(addDataPointErrF)
 
 			ms, err := reporter.Report(nil)
 			So(err, ShouldBeNil)
 			So(ms, ShouldNotBeNil)
 			So(ms.Len(), ShouldEqual, 2)
-			So(reporter.metrics.Len(), ShouldEqual, 0)
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
 		})
 
 		Convey("reporting should work", func() {
@@ -175,7 +176,7 @@ func ExampleReporter() {
 	inc.Inc(5)
 	cval = 1
 
-	_, err := reporter.Report(context.Background())
+	ms, err := reporter.Report(context.Background())
 
 	fmt.Printf("incrementer: %d\n", inc.Value())
 	fmt.Printf("cumulative: %d\n", cumulative.IntValue())
@@ -185,4 +186,6 @@ func ExampleReporter() {
 	// incrementer: 6
 	// cumulative: 1
 	// error: <nil>
+
+	pretty.Println(ms)
 }

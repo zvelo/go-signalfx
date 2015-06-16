@@ -10,7 +10,7 @@ import (
 func TestBucket(t *testing.T) {
 	Convey("Testing Bucket", t, func() {
 		b := NewBucket("test", sfxproto.Dimensions{"c": "c"})
-		So(b.Metrics(nil).Len(), ShouldEqual, 3)
+		So(b.DataPoints(nil).Len(), ShouldEqual, 3)
 
 		b.Add(1)
 		b.Add(2)
@@ -30,6 +30,6 @@ func TestBucket(t *testing.T) {
 		So(b.Min(), ShouldEqual, 0)
 
 		b.Add(1)
-		So(b.Metrics(sfxproto.Dimensions{"a": "b"}).Len(), ShouldEqual, 5)
+		So(b.DataPoints(sfxproto.Dimensions{"a": "b"}).Len(), ShouldEqual, 5)
 	})
 }

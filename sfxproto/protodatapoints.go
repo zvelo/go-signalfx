@@ -15,14 +15,14 @@ var (
 
 // DataPoints is a DataPoint list
 type DataPoints struct {
-	data map[*DataPoint]interface{}
+	data map[*ProtoDataPoint]interface{}
 	lock sync.Mutex
 }
 
 // NewDataPoints creates a new DataPoints object
 func NewDataPoints(l int) *DataPoints {
 	return &DataPoints{
-		data: make(map[*DataPoint]interface{}, l),
+		data: make(map[*ProtoDataPoint]interface{}, l),
 	}
 }
 
@@ -34,8 +34,8 @@ func (dps *DataPoints) Len() int {
 }
 
 // returns copies for thread safety reasons
-func (dps *DataPoints) List() []*DataPoint {
-	ret := make([]*DataPoint, 0, dps.Len())
+func (dps *DataPoints) List() []*ProtoDataPoint {
+	ret := make([]*ProtoDataPoint, 0, dps.Len())
 
 	dps.lock.Lock()
 	defer dps.lock.Unlock()
@@ -61,8 +61,8 @@ func (dps *DataPoints) Marshal() ([]byte, error) {
 }
 
 // Add a new DataPoint to the list
-func (dps *DataPoints) Add(dataPoint *DataPoint) *DataPoints {
-	if dataPoint != nil && len(dataPoint.Metric) > 0 {
+func (dps *DataPoints) Add(dataPoint *ProtoDataPoint) *DataPoints {
+	if dataPoint != nil && dataPoint.Metric != nil && len(*dataPoint.Metric) > 0 {
 		dps.lock.Lock()
 		defer dps.lock.Unlock()
 
@@ -83,7 +83,7 @@ func (dps *DataPoints) Concat(val *DataPoints) *DataPoints {
 	return dps
 }
 
-func (dps *DataPoints) Remove(val *DataPoint) {
+func (dps *DataPoints) Remove(val *ProtoDataPoint) {
 	dps.lock.Lock()
 	defer dps.lock.Unlock()
 

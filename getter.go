@@ -2,14 +2,14 @@ package signalfx
 
 import "sync/atomic"
 
-// Getter is an interface that is used by Metric. It may return any kind of
+// Getter is an interface that is used by DataPoint. It may return any kind of
 // integer, float, string or nil, including pointers. Any other type is invalid.
 type Getter interface {
 	Get() (interface{}, error)
 }
 
 // The GetterFunc type is an adapter to allow the use of ordinary functions as
-// Metric Getters. If f is a function with the appropriate signature,
+// DataPoint Getters. If f is a function with the appropriate signature,
 // GetterFunc(f) is a Getter object that calls f. f() must return a value that
 // is nil, any int type, any float type, a string, a pointer to any of those
 // types or a Getter that returns any of those types.

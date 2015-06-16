@@ -12,12 +12,28 @@ import (
 func TestDataPoint(t *testing.T) {
 	Convey("Testing DataPoint", t, func() {
 		Convey("ensuring proto3 version matches proto2", func() {
-			p2EQp3 := func(p2dp *p2.DataPoint, p3dp *DataPoint) {
+			p2EQp3 := func(p2dp *p2.DataPoint, p3dp *ProtoDataPoint) {
 				So(p3dp.Metric, ShouldEqual, *p2dp.Metric)
 				So(p3dp.MetricType, ShouldEqual, *p2dp.MetricType)
-				So(p3dp.Value.StrValue, ShouldEqual, *p2dp.Value.StrValue)
-				So(p3dp.Value.DoubleValue, ShouldEqual, *p2dp.Value.DoubleValue)
-				So(p3dp.Value.IntValue, ShouldEqual, *p2dp.Value.IntValue)
+
+				if p3dp.Value.StrValue == "" {
+					So(p2dp.Value.StrValue, ShouldBeNil)
+				} else {
+					So(p3dp.Value.StrValue, ShouldEqual, *p2dp.Value.StrValue)
+				}
+
+				if p3dp.Value.DoubleValue == 0 {
+					So(p2dp.Value.DoubleValue, ShouldBeNil)
+				} else {
+					So(p3dp.Value.DoubleValue, ShouldEqual, *p2dp.Value.DoubleValue)
+				}
+
+				if p3dp.Value.IntValue == 0 {
+					So(p2dp.Value.IntValue, ShouldBeNil)
+				} else {
+					So(p3dp.Value.IntValue, ShouldEqual, *p2dp.Value.IntValue)
+				}
+
 				So(p3dp.Timestamp, ShouldEqual, *p2dp.Timestamp)
 				So(len(p3dp.Dimensions), ShouldEqual, len(p2dp.Dimensions))
 
@@ -31,7 +47,7 @@ func TestDataPoint(t *testing.T) {
 			}
 
 			t := time.Now()
-			dp := &DataPoint{
+			dp := &ProtoDataPoint{
 				Metric:     "test_data",
 				MetricType: MetricType_COUNTER,
 				Value: &Datum{
@@ -90,7 +106,7 @@ func TestDataPoint(t *testing.T) {
 				So(data, ShouldNotBeNil)
 
 				// unmarshal the bytes into a proto2 datapoint
-				p3dp := &DataPoint{}
+				p3dp := &ProtoDataPoint{}
 				err = proto.Unmarshal(data, p3dp)
 				So(err, ShouldBeNil)
 

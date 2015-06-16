@@ -6,12 +6,12 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestMetrics(t *testing.T) {
-	Convey("Testing Metrics", t, func() {
-		ms := NewMetrics(0)
+func TestDataPoints(t *testing.T) {
+	Convey("Testing DataPoints", t, func() {
+		ms := NewDataPoints(0)
 		So(ms.Len(), ShouldEqual, 0)
 
-		ms = NewMetrics(2)
+		ms = NewDataPoints(2)
 		So(ms.Len(), ShouldEqual, 0)
 
 		So(ms.Add(nil), ShouldEqual, ms)
@@ -54,11 +54,11 @@ func TestMetrics(t *testing.T) {
 		ms.Remove(m1)
 		So(ms.Len(), ShouldEqual, 2)
 
-		rs := NewMetrics(0)
+		rs := NewDataPoints(0)
 		rs.Add(m2)
 		So(rs.Len(), ShouldEqual, 1)
 
-		ms.RemoveMetrics(rs)
+		ms.RemoveDataPoints(rs)
 		So(ms.Len(), ShouldEqual, 1)
 
 		dps, err := ms.DataPoints()

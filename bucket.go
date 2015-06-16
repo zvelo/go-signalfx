@@ -94,7 +94,7 @@ func (b *Bucket) dimFor(defaultDims sfxproto.Dimensions, rollup string) sfxproto
 	return dims
 }
 
-func (b *Bucket) CountMetric(defaultDims sfxproto.Dimensions) *Metric {
+func (b *Bucket) CountDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -102,7 +102,7 @@ func (b *Bucket) CountMetric(defaultDims sfxproto.Dimensions) *Metric {
 	return dp
 }
 
-func (b *Bucket) SumMetric(defaultDims sfxproto.Dimensions) *Metric {
+func (b *Bucket) SumDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -110,7 +110,7 @@ func (b *Bucket) SumMetric(defaultDims sfxproto.Dimensions) *Metric {
 	return dp
 }
 
-func (b *Bucket) SumOfSquaresMetric(defaultDims sfxproto.Dimensions) *Metric {
+func (b *Bucket) SumOfSquaresDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -119,7 +119,7 @@ func (b *Bucket) SumOfSquaresMetric(defaultDims sfxproto.Dimensions) *Metric {
 }
 
 // resets min
-func (b *Bucket) MinMetric(defaultDims sfxproto.Dimensions) *Metric {
+func (b *Bucket) MinDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -135,7 +135,7 @@ func (b *Bucket) MinMetric(defaultDims sfxproto.Dimensions) *Metric {
 }
 
 // resets max
-func (b *Bucket) MaxMetric(defaultDims sfxproto.Dimensions) *Metric {
+func (b *Bucket) MaxDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -151,11 +151,11 @@ func (b *Bucket) MaxMetric(defaultDims sfxproto.Dimensions) *Metric {
 }
 
 // resets min and max
-func (b *Bucket) Metrics(defaultDims sfxproto.Dimensions) *Metrics {
-	return NewMetrics(5).
-		Add(b.CountMetric(defaultDims)).
-		Add(b.SumMetric(defaultDims)).
-		Add(b.SumOfSquaresMetric(defaultDims)).
-		Add(b.MinMetric(defaultDims)).
-		Add(b.MaxMetric(defaultDims))
+func (b *Bucket) DataPoints(defaultDims sfxproto.Dimensions) *DataPoints {
+	return NewDataPoints(5).
+		Add(b.CountDataPoint(defaultDims)).
+		Add(b.SumDataPoint(defaultDims)).
+		Add(b.SumOfSquaresDataPoint(defaultDims)).
+		Add(b.MinDataPoint(defaultDims)).
+		Add(b.MaxDataPoint(defaultDims))
 }

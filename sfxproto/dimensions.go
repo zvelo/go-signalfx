@@ -3,6 +3,8 @@ package sfxproto
 import (
 	"strings"
 	"unicode"
+
+	"github.com/gogo/protobuf/proto"
 )
 
 // Dimensions is map that can be converted into []*Dimension
@@ -17,8 +19,8 @@ func (ds Dimensions) List() []*Dimension {
 		}
 
 		ret = append(ret, &Dimension{
-			Key:   massageKey(key),
-			Value: val,
+			Key:   proto.String(massageKey(key)),
+			Value: proto.String(val),
 		})
 	}
 
@@ -61,7 +63,9 @@ func NewDimensions(dims []*Dimension) Dimensions {
 	ret := make(Dimensions, len(dims))
 
 	for _, dim := range dims {
-		ret[dim.Key] = dim.Value
+		if dim.Key != nil && dim.Value != nil {
+			ret[*dim.Key] = *dim.Value
+		}
 	}
 
 	return ret

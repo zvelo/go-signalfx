@@ -11,15 +11,17 @@ It is generated from these files:
 It has these top-level messages:
 	Datum
 	Dimension
-	DataPoint
+	ProtoDataPoint
 	DataPointUploadMessage
 */
 package sfxproto
 
 import proto "github.com/golang/protobuf/proto"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
+var _ = math.Inf
 
 type MetricType int32
 
@@ -50,49 +52,121 @@ var MetricType_value = map[string]int32{
 	"CUMULATIVE_COUNTER": 3,
 }
 
+func (x MetricType) Enum() *MetricType {
+	p := new(MetricType)
+	*p = x
+	return p
+}
 func (x MetricType) String() string {
 	return proto.EnumName(MetricType_name, int32(x))
 }
+func (x *MetricType) UnmarshalJSON(data []byte) error {
+	value, err := proto.UnmarshalJSONEnum(MetricType_value, data, "MetricType")
+	if err != nil {
+		return err
+	}
+	*x = MetricType(value)
+	return nil
+}
 
 type Datum struct {
-	StrValue    string  `protobuf:"bytes,1,opt,name=strValue" json:"strValue,omitempty"`
-	DoubleValue float64 `protobuf:"fixed64,2,opt,name=doubleValue" json:"doubleValue,omitempty"`
-	IntValue    int64   `protobuf:"varint,3,opt,name=intValue" json:"intValue,omitempty"`
+	StrValue         *string  `protobuf:"bytes,1,opt,name=strValue" json:"strValue,omitempty"`
+	DoubleValue      *float64 `protobuf:"fixed64,2,opt,name=doubleValue" json:"doubleValue,omitempty"`
+	IntValue         *int64   `protobuf:"varint,3,opt,name=intValue" json:"intValue,omitempty"`
+	XXX_unrecognized []byte   `json:"-"`
 }
 
 func (m *Datum) Reset()         { *m = Datum{} }
 func (m *Datum) String() string { return proto.CompactTextString(m) }
 func (*Datum) ProtoMessage()    {}
 
+func (m *Datum) GetStrValue() string {
+	if m != nil && m.StrValue != nil {
+		return *m.StrValue
+	}
+	return ""
+}
+
+func (m *Datum) GetDoubleValue() float64 {
+	if m != nil && m.DoubleValue != nil {
+		return *m.DoubleValue
+	}
+	return 0
+}
+
+func (m *Datum) GetIntValue() int64 {
+	if m != nil && m.IntValue != nil {
+		return *m.IntValue
+	}
+	return 0
+}
+
 type Dimension struct {
-	Key   string `protobuf:"bytes,1,opt,name=key" json:"key,omitempty"`
-	Value string `protobuf:"bytes,2,opt,name=value" json:"value,omitempty"`
+	Key              *string `protobuf:"bytes,1,opt,name=key" json:"key,omitempty"`
+	Value            *string `protobuf:"bytes,2,opt,name=value" json:"value,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
 }
 
 func (m *Dimension) Reset()         { *m = Dimension{} }
 func (m *Dimension) String() string { return proto.CompactTextString(m) }
 func (*Dimension) ProtoMessage()    {}
 
-type DataPoint struct {
-	// source, field 1, was deprecated, so start at field 2
-	Metric     string       `protobuf:"bytes,2,opt,name=metric" json:"metric,omitempty"`
-	Timestamp  int64        `protobuf:"varint,3,opt,name=timestamp" json:"timestamp,omitempty"`
-	Value      *Datum       `protobuf:"bytes,4,opt,name=value" json:"value,omitempty"`
-	MetricType MetricType   `protobuf:"varint,5,opt,name=metricType,enum=sfxproto.MetricType" json:"metricType,omitempty"`
-	Dimensions []*Dimension `protobuf:"bytes,6,rep,name=dimensions" json:"dimensions,omitempty"`
+func (m *Dimension) GetKey() string {
+	if m != nil && m.Key != nil {
+		return *m.Key
+	}
+	return ""
 }
 
-func (m *DataPoint) Reset()         { *m = DataPoint{} }
-func (*DataPoint) ProtoMessage()    {}
+func (m *Dimension) GetValue() string {
+	if m != nil && m.Value != nil {
+		return *m.Value
+	}
+	return ""
+}
 
-func (m *DataPoint) GetValue() *Datum {
+type ProtoDataPoint struct {
+	// source, field 1, was deprecated, so start at field 2
+	Metric           *string      `protobuf:"bytes,2,opt,name=metric" json:"metric,omitempty"`
+	Timestamp        *int64       `protobuf:"varint,3,opt,name=timestamp" json:"timestamp,omitempty"`
+	Value            *Datum       `protobuf:"bytes,4,opt,name=value" json:"value,omitempty"`
+	MetricType       *MetricType  `protobuf:"varint,5,opt,name=metricType,enum=sfxproto.MetricType" json:"metricType,omitempty"`
+	Dimensions       []*Dimension `protobuf:"bytes,6,rep,name=dimensions" json:"dimensions,omitempty"`
+	XXX_unrecognized []byte       `json:"-"`
+}
+
+func (m *ProtoDataPoint) Reset()         { *m = ProtoDataPoint{} }
+func (*ProtoDataPoint) ProtoMessage()    {}
+
+func (m *ProtoDataPoint) GetMetric() string {
+	if m != nil && m.Metric != nil {
+		return *m.Metric
+	}
+	return ""
+}
+
+func (m *ProtoDataPoint) GetTimestamp() int64 {
+	if m != nil && m.Timestamp != nil {
+		return *m.Timestamp
+	}
+	return 0
+}
+
+func (m *ProtoDataPoint) GetValue() *Datum {
 	if m != nil {
 		return m.Value
 	}
 	return nil
 }
 
-func (m *DataPoint) GetDimensions() []*Dimension {
+func (m *ProtoDataPoint) GetMetricType() MetricType {
+	if m != nil && m.MetricType != nil {
+		return *m.MetricType
+	}
+	return MetricType_GAUGE
+}
+
+func (m *ProtoDataPoint) GetDimensions() []*Dimension {
 	if m != nil {
 		return m.Dimensions
 	}
@@ -100,14 +174,15 @@ func (m *DataPoint) GetDimensions() []*Dimension {
 }
 
 type DataPointUploadMessage struct {
-	Datapoints []*DataPoint `protobuf:"bytes,1,rep,name=datapoints" json:"datapoints,omitempty"`
+	Datapoints       []*ProtoDataPoint `protobuf:"bytes,1,rep,name=datapoints" json:"datapoints,omitempty"`
+	XXX_unrecognized []byte            `json:"-"`
 }
 
 func (m *DataPointUploadMessage) Reset()         { *m = DataPointUploadMessage{} }
 func (m *DataPointUploadMessage) String() string { return proto.CompactTextString(m) }
 func (*DataPointUploadMessage) ProtoMessage()    {}
 
-func (m *DataPointUploadMessage) GetDatapoints() []*DataPoint {
+func (m *DataPointUploadMessage) GetDatapoints() []*ProtoDataPoint {
 	if m != nil {
 		return m.Datapoints
 	}
