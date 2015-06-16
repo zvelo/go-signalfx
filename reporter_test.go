@@ -37,17 +37,17 @@ func TestReporter(t *testing.T) {
 			So(reporter.datapoints.Len(), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			cumulative := reporter.NewCumulative("cumulative", ValueGetter(0), nil)
+			cumulative := reporter.NewCumulative("cumulative", Value(0), nil)
 			So(cumulative, ShouldNotBeNil)
 			So(reporter.datapoints.Len(), ShouldEqual, 1)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			gauge := reporter.NewGauge("gauge", ValueGetter(0), nil)
+			gauge := reporter.NewGauge("gauge", Value(0), nil)
 			So(gauge, ShouldNotBeNil)
 			So(reporter.datapoints.Len(), ShouldEqual, 2)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			counter := reporter.NewCounter("counter", ValueGetter(0), nil)
+			counter := reporter.NewCounter("counter", Value(0), nil)
 			So(counter, ShouldNotBeNil)
 			So(reporter.datapoints.Len(), ShouldEqual, 3)
 			So(len(reporter.buckets), ShouldEqual, 1)
@@ -95,13 +95,13 @@ func TestReporter(t *testing.T) {
 			So(reporter.datapoints.Len(), ShouldEqual, 0)
 
 			addDataPointF := func(dims sfxproto.Dimensions) *DataPoints {
-				count0, err := NewCounter("count0", ValueGetter(0), nil)
+				count0, err := NewCounter("count0", Value(0), nil)
 				if err != nil {
 					return nil
 				}
 				So(count0, ShouldNotBeNil)
 
-				count1, err := NewCounter("count1", ValueGetter(0), nil)
+				count1, err := NewCounter("count1", Value(0), nil)
 				if err != nil {
 					return nil
 				}
@@ -154,25 +154,25 @@ func TestReporter(t *testing.T) {
 func ExampleReporter() {
 	// auth token will be taken from $SFX_API_TOKEN if it exists
 	// for this example, it must be set correctly
-	config := NewConfig()
-	reporter := NewReporter(config, map[string]string{
+	c := NewConfig()
+	r := NewReporter(c, map[string]string{
 		"test_dimension0": "value0",
 		"test_dimension1": "value1",
 	})
 
 	gval := 0
-	gauge := reporter.NewGauge("TestGauge", ValueGetter(&gval), map[string]string{
+	gauge := r.NewGauge("TestGauge", Value(&gval), map[string]string{
 		"test_gauge_dimension0": "gauge0",
 		"test_gauge_dimension1": "gauge1",
 	})
 
-	inc := reporter.NewIncrementer("TestIncrementer", map[string]string{
+	inc := r.NewInc("TestIncrementer", map[string]string{
 		"test_incrementer_dimension0": "incrementer0",
 		"test_incrementer_dimension1": "incrementer1",
 	})
 
 	cval := 0
-	cumulative := reporter.NewCumulative("TestCumulative", ValueGetter(&cval), map[string]string{
+	cumulative := r.NewCumulative("TestCumulative", Value(&cval), map[string]string{
 		"test_cumulative_dimension0": "cumulative0",
 		"test_cumulative_dimension1": "cumulative1",
 	})
@@ -182,7 +182,7 @@ func ExampleReporter() {
 	inc.Inc(5)
 	cval = 1
 
-	_, err := reporter.Report(context.Background())
+	_, err := r.Report(context.Background())
 
 	fmt.Printf("gauge: %d\n", gauge.IntValue())
 	fmt.Printf("incrementer: %d\n", inc.Value())

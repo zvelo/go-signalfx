@@ -72,9 +72,9 @@ func TestDataPoint(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 
-		Convey("ValueGetter functionality", func() {
+		Convey("Value functionality", func() {
 			i := 5
-			g := ValueGetter(&i)
+			g := Value(&i)
 			v, err := g.Get()
 			So(err, ShouldBeNil)
 			So(v, ShouldEqual, &i)
@@ -196,9 +196,9 @@ func TestDataPoint(t *testing.T) {
 	})
 }
 
-func ExampleValueGetter() {
+func ExampleValue() {
 	val := 5
-	cumulative, _ := NewCumulative("cumulative", ValueGetter(&val), nil)
+	cumulative, _ := NewCumulative("cumulative", Value(&val), nil)
 
 	val = 9
 	fmt.Println(cumulative.IntValue())

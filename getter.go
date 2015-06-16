@@ -20,42 +20,43 @@ func (f GetterFunc) Get() (interface{}, error) {
 	return f()
 }
 
-// ValueGetter is a convenience function for making a value satisfy the Getter
+// Value is a convenience function for making a value satisfy the Getter
 // interface. It is especially useful with pointers. value must be nil, any int
 // type, any float type, a string, a pointer to any of those types or a Getter
 // that returns any of those types.
-func ValueGetter(value interface{}) Getter {
-	return valueGetter{value}
+func Value(val interface{}) Getter {
+	return vg{val}
 }
 
-type valueGetter struct {
-	value interface{}
+type vg struct {
+	v interface{}
 }
 
-func (v valueGetter) Get() (interface{}, error) {
-	return v.value, nil
+func (v vg) Get() (interface{}, error) {
+	return v.v, nil
 }
 
-type Incrementer struct {
-	value int64
+type Inc struct {
+	// use a struct instead of typing on int64 to ensure goroutine safety
+	v int64
 }
 
-func NewIncrementer(value int64) *Incrementer {
-	return &Incrementer{value}
+func NewInc(val int64) *Inc {
+	return &Inc{val}
 }
 
-func (i *Incrementer) Set(value int64) {
-	atomic.StoreInt64(&i.value, value)
+func (i *Inc) Set(val int64) {
+	atomic.StoreInt64(&i.v, val)
 }
 
-func (i *Incrementer) Inc(delta int64) int64 {
-	return atomic.AddInt64(&i.value, delta)
+func (i *Inc) Inc(delta int64) int64 {
+	return atomic.AddInt64(&i.v, delta)
 }
 
-func (i *Incrementer) Get() (interface{}, error) {
+func (i *Inc) Get() (interface{}, error) {
 	return i.Value(), nil
 }
 
-func (i *Incrementer) Value() int64 {
-	return atomic.LoadInt64(&i.value)
+func (i *Inc) Value() int64 {
+	return atomic.LoadInt64(&i.v)
 }
