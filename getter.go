@@ -23,7 +23,9 @@ func (f GetterFunc) Get() (interface{}, error) {
 // Value is a convenience function for making a value satisfy the Getter
 // interface. It is especially useful with pointers. value must be nil, any int
 // type, any float type, a string, a pointer to any of those types or a Getter
-// that returns any of those types.
+// that returns any of those types. One important note is that, for pointers,
+// value changes are not goroutine safe in a Reporter unless they occur only
+// within a PreReportCallback.
 func Value(val interface{}) Getter {
 	return vg{val}
 }

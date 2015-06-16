@@ -25,7 +25,7 @@ func TestDataPoint(t *testing.T) {
 
 			e := c.Clone()
 			So(e, ShouldNotEqual, c)
-			So(e.dp, ShouldNotEqual, c.dp)
+			So(e.pdp, ShouldNotEqual, c.pdp)
 			So(e.IntValue(), ShouldEqual, 2)
 			So(e.Metric(), ShouldEqual, "count")
 			So(e.Time().Equal(c.Time()), ShouldBeTrue)
@@ -154,12 +154,12 @@ func TestDataPoint(t *testing.T) {
 
 			t := time.Unix(0, 0)
 			c.SetTime(t)
-			So(*c.dp.Timestamp, ShouldEqual, 0)
+			So(*c.pdp.Timestamp, ShouldEqual, 0)
 			So(c.Time().Equal(t), ShouldBeTrue)
 
 			t = time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
 			c.SetTime(t)
-			So(*c.dp.Timestamp, ShouldEqual, 1257894000000)
+			So(*c.pdp.Timestamp, ShouldEqual, 1257894000000)
 			So(c.Time().Equal(t), ShouldBeTrue)
 		})
 
@@ -192,6 +192,33 @@ func TestDataPoint(t *testing.T) {
 
 			g.RemoveDimension("d", "a")
 			So(len(g.Dimensions()), ShouldEqual, 2)
+		})
+
+		Convey("getters should work", func() {
+			i := 0
+			v := Value(&i)
+
+			c0, err := NewCounter("counter", v, nil)
+			So(err, ShouldBeNil)
+			So(c0, ShouldNotBeNil)
+			So(c0.IntValue(), ShouldEqual, 0)
+
+			i++
+			So(c0.IntValue(), ShouldEqual, 1)
+
+			c1, err := NewCounter("counter", 1, nil)
+			So(err, ShouldBeNil)
+			So(c1, ShouldNotBeNil)
+			So(c1.IntValue(), ShouldEqual, 1)
+
+			So(c0.Equal(c1), ShouldBeFalse)
+
+			c2, err := NewCounter("counter", v, nil)
+			So(err, ShouldBeNil)
+			So(c2, ShouldNotBeNil)
+			So(c2.IntValue(), ShouldEqual, 1)
+
+			So(c0.Equal(c2), ShouldBeTrue)
 		})
 	})
 }

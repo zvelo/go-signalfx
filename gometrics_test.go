@@ -36,12 +36,12 @@ func TestGoMetrics(t *testing.T) {
 
 		So(datapoints.Len(), ShouldEqual, 30)
 
-		testDataPoint := func(m *DataPoint, t sfxproto.MetricType) {
-			So(m.Type(), ShouldEqual, t)
-			So(m.Time().Before(time.Now()), ShouldBeTrue)
-			So(len(m.Dimensions()), ShouldEqual, 2)
+		testDataPoint := func(dp *DataPoint, t sfxproto.MetricType) {
+			So(dp.Type(), ShouldEqual, t)
+			So(dp.Time().Before(time.Now()), ShouldBeTrue)
+			So(len(dp.Dimensions()), ShouldEqual, 2)
 
-			for key, value := range m.Dimensions() {
+			for key, value := range dp.Dimensions() {
 				switch key {
 				case "instance":
 					So(value, ShouldEqual, "global_stats")
@@ -52,15 +52,15 @@ func TestGoMetrics(t *testing.T) {
 				}
 			}
 
-			So(m.dp.Value, ShouldNotBeNil)
-			So(m.StrValue(), ShouldEqual, "")
-			So(m.DoubleValue(), ShouldEqual, 0)
-			So(m.IntValue(), ShouldBeGreaterThanOrEqualTo, 0)
+			So(dp.pdp.Value, ShouldNotBeNil)
+			So(dp.StrValue(), ShouldEqual, "")
+			So(dp.DoubleValue(), ShouldEqual, 0)
+			So(dp.IntValue(), ShouldBeGreaterThanOrEqualTo, 0)
 		}
 
 		list := datapoints.List()
-		for _, m := range list {
-			switch m.Metric() {
+		for _, dp := range list {
+			switch dp.Metric() {
 			case "Alloc",
 				"Sys",
 				"HeapAlloc",
@@ -85,11 +85,11 @@ func TestGoMetrics(t *testing.T) {
 				"process.uptime.ns",
 				"num_cpu",
 				"num_goroutine":
-				testDataPoint(m, sfxproto.MetricType_GAUGE)
+				testDataPoint(dp, sfxproto.MetricType_GAUGE)
 			case "TotalAlloc", "Lookups", "Mallocs", "Frees", "PauseTotalNs", "num_cgo_call":
-				testDataPoint(m, sfxproto.MetricType_CUMULATIVE_COUNTER)
+				testDataPoint(dp, sfxproto.MetricType_CUMULATIVE_COUNTER)
 			default:
-				So(m.Metric(), ShouldEqual, forceFail)
+				So(dp.Metric(), ShouldEqual, forceFail)
 			}
 		}
 

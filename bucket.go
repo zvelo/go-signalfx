@@ -17,40 +17,48 @@ type Bucket struct {
 	max          int64
 	sum          int64
 	sumOfSquares int64
-	lock         sync.Mutex
+	mu           sync.Mutex
+}
+
+func (b *Bucket) lock() {
+	b.mu.Lock()
+}
+
+func (b *Bucket) unlock() {
+	b.mu.Unlock()
 }
 
 func (b *Bucket) Count() int64 {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock()
+	defer b.unlock()
 
 	return b.count
 }
 
 func (b *Bucket) Min() int64 {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock()
+	defer b.unlock()
 
 	return b.min
 }
 
 func (b *Bucket) Max() int64 {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock()
+	defer b.unlock()
 
 	return b.max
 }
 
 func (b *Bucket) Sum() int64 {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock()
+	defer b.unlock()
 
 	return b.sum
 }
 
 func (b *Bucket) SumOfSquares() int64 {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock()
+	defer b.unlock()
 
 	return b.sumOfSquares
 }
@@ -65,8 +73,8 @@ func NewBucket(metric string, dimensions sfxproto.Dimensions) *Bucket {
 // Add an item to the bucket, later reporting the result in the next report
 // cycle.
 func (b *Bucket) Add(val int64) {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock()
+	defer b.unlock()
 
 	b.count++
 	b.sum += val
@@ -95,24 +103,24 @@ func (b *Bucket) dimFor(defaultDims sfxproto.Dimensions, rollup string) sfxproto
 }
 
 func (b *Bucket) CountDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock()
+	defer b.unlock()
 
 	dp, _ := NewCounter(b.Metric, b.count, b.dimFor(defaultDims, "count"))
 	return dp
 }
 
 func (b *Bucket) SumDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock()
+	defer b.unlock()
 
 	dp, _ := NewCounter(b.Metric, b.sum, b.dimFor(defaultDims, "sum"))
 	return dp
 }
 
 func (b *Bucket) SumOfSquaresDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock()
+	defer b.unlock()
 
 	dp, _ := NewCounter(b.Metric, b.sumOfSquares, b.dimFor(defaultDims, "sumsquare"))
 	return dp
@@ -120,8 +128,8 @@ func (b *Bucket) SumOfSquaresDataPoint(defaultDims sfxproto.Dimensions) *DataPoi
 
 // resets min
 func (b *Bucket) MinDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock()
+	defer b.unlock()
 
 	var min int64
 	b.min, min = math.MaxInt64, b.min
@@ -136,8 +144,8 @@ func (b *Bucket) MinDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 
 // resets max
 func (b *Bucket) MaxDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock()
+	defer b.unlock()
 
 	var max int64
 	b.max, max = math.MinInt64, b.max

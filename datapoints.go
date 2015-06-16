@@ -9,7 +9,7 @@ import (
 // DataPoints represents a set of DataPoint objects
 type DataPoints struct {
 	datapoints map[*DataPoint]interface{}
-	lock       sync.Mutex
+	mu         sync.Mutex
 }
 
 // NewDataPoints returns a new DataPoints object with an expected, length, of l
@@ -19,43 +19,51 @@ func NewDataPoints(l int) *DataPoints {
 	}
 }
 
-// Add a DataPoint to the set
-func (ms *DataPoints) Add(vals ...*DataPoint) *DataPoints {
-	ms.lock.Lock()
-	defer ms.lock.Unlock()
+func (dps *DataPoints) lock() {
+	dps.mu.Lock()
+}
 
-	for _, m := range vals {
-		if m != nil {
-			ms.datapoints[m] = nil
+func (dps *DataPoints) unlock() {
+	dps.mu.Unlock()
+}
+
+// Add a DataPoint to the set
+func (dps *DataPoints) Add(vals ...*DataPoint) *DataPoints {
+	dps.lock()
+	defer dps.unlock()
+
+	for _, dp := range vals {
+		if dp != nil {
+			dps.datapoints[dp] = nil
 		}
 	}
 
-	return ms
+	return dps
 }
 
 // Concat appends the passed datapoints to the source object
-func (ms *DataPoints) Concat(val *DataPoints) {
+func (dps *DataPoints) Concat(val *DataPoints) {
 	if val == nil {
 		return
 	}
 
-	val.lock.Lock()
-	defer val.lock.Unlock()
+	val.lock()
+	defer val.unlock()
 
-	for m := range val.datapoints {
-		ms.Add(m)
+	for dp := range val.datapoints {
+		dps.Add(dp)
 	}
 }
 
 // List returns a slice of a copy of all of the datapoints contained in DataPoints
-func (ms *DataPoints) List() []*DataPoint {
-	ret := make([]*DataPoint, 0, ms.Len())
+func (dps *DataPoints) List() []*DataPoint {
+	ret := make([]*DataPoint, 0, dps.Len())
 
-	ms.lock.Lock()
-	defer ms.lock.Unlock()
+	dps.lock()
+	defer dps.unlock()
 
-	for m := range ms.datapoints {
-		ret = append(ret, m.Clone())
+	for dp := range dps.datapoints {
+		ret = append(ret, dp.Clone())
 	}
 
 	return ret
@@ -63,16 +71,16 @@ func (ms *DataPoints) List() []*DataPoint {
 
 // Clone makes a copy of the DataPoints. It copies the underlying DataPoint
 // pointers and does not do a deep copy of their values.
-func (ms *DataPoints) Clone() *DataPoints {
+func (dps *DataPoints) Clone() *DataPoints {
 	ret := &DataPoints{
-		datapoints: make(map[*DataPoint]interface{}, ms.Len()),
+		datapoints: make(map[*DataPoint]interface{}, dps.Len()),
 	}
 
-	ms.lock.Lock()
-	defer ms.lock.Unlock()
+	dps.lock()
+	defer dps.unlock()
 
-	for m := range ms.datapoints {
-		ret.datapoints[m] = nil
+	for dp := range dps.datapoints {
+		ret.datapoints[dp] = nil
 	}
 
 	return ret
@@ -80,49 +88,49 @@ func (ms *DataPoints) Clone() *DataPoints {
 
 // Remove DataPoint(s) from the set. The match is by testing for pointer
 // equality, not DataPoint equality.
-func (ms *DataPoints) Remove(vals ...*DataPoint) {
-	ms.lock.Lock()
-	defer ms.lock.Unlock()
+func (dps *DataPoints) Remove(vals ...*DataPoint) {
+	dps.lock()
+	defer dps.unlock()
 
-	for _, m := range vals {
-		delete(ms.datapoints, m)
+	for _, dp := range vals {
+		delete(dps.datapoints, dp)
 	}
 }
 
 // RemoveDataPoints removes DataPoint(s) from the set
-func (ms *DataPoints) RemoveDataPoints(val *DataPoints) {
-	val.lock.Lock()
-	defer val.lock.Unlock()
+func (dps *DataPoints) RemoveDataPoints(val *DataPoints) {
+	val.lock()
+	defer val.unlock()
 
-	for m := range val.datapoints {
-		ms.Remove(m)
+	for dp := range val.datapoints {
+		dps.Remove(dp)
 	}
 }
 
-// DataPoints returns a sfxproto.DataPoints object representing the underlying
-// DataPoints contained in the DataPoints object. If a DataPoint has a Getter, the
-// value will be updated before returning.
-func (ms *DataPoints) DataPoints() (*sfxproto.DataPoints, error) {
-	ret := sfxproto.NewDataPoints(ms.Len())
+// ProtoDataPoints returns a sfxproto.ProtoDataPoints object representing the
+// underlying DataPoint objects contained in the DataPoints object. If a
+// DataPoint has a Getter, the value will be updated before returning.
+func (dps *DataPoints) ProtoDataPoints() (*sfxproto.ProtoDataPoints, error) {
+	ret := sfxproto.NewProtoDataPoints(dps.Len())
 
-	ms.lock.Lock()
-	defer ms.lock.Unlock()
+	dps.lock()
+	defer dps.unlock()
 
-	for m := range ms.datapoints {
-		if err := m.update(); err != nil {
+	for dp := range dps.datapoints {
+		if err := dp.update(); err != nil {
 			return nil, err
 		}
 
-		ret.Add(m.dp)
+		ret.Add(dp.pdp)
 	}
 
 	return ret, nil
 }
 
 // Len returns the number of datapoints the DataPoints object contains
-func (ms *DataPoints) Len() int {
-	ms.lock.Lock()
-	defer ms.lock.Unlock()
+func (dps *DataPoints) Len() int {
+	dps.lock()
+	defer dps.unlock()
 
-	return len(ms.datapoints)
+	return len(dps.datapoints)
 }

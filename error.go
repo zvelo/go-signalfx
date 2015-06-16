@@ -21,7 +21,7 @@ type ErrStatus struct {
 	StatusCode int
 }
 
-func (e *ErrStatus) Error() string {
+func (e ErrStatus) Error() string {
 	return fmt.Sprintf("%s: invalid status code: %d", e.Body, e.StatusCode)
 }
 
@@ -31,7 +31,7 @@ type ErrJSON struct {
 	Body []byte
 }
 
-func (e *ErrJSON) Error() string {
+func (e ErrJSON) Error() string {
 	return string(e.Body)
 }
 
@@ -41,6 +41,6 @@ type ErrInvalidBody struct {
 	Body string
 }
 
-func (e *ErrInvalidBody) Error() string {
+func (e ErrInvalidBody) Error() string {
 	return e.Body
 }

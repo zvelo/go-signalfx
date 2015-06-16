@@ -29,14 +29,14 @@ func NewClient(config *Config) *Client {
 }
 
 // Submit forwards raw datapoints to SignalFx
-func (c *Client) Submit(ctx context.Context, dps *sfxproto.DataPoints) error {
+func (c *Client) Submit(ctx context.Context, pdps *sfxproto.ProtoDataPoints) error {
 	if ctx == nil {
 		ctx = context.Background()
 	} else if ctx.Err() != nil {
 		return ctx.Err()
 	}
 
-	jsonBytes, err := dps.Marshal()
+	jsonBytes, err := pdps.Marshal()
 	if err != nil {
 		return ErrMarshal(err)
 	}

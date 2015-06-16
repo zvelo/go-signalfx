@@ -18,7 +18,7 @@ func (dp *ProtoDataPoint) String() string {
 
 func (dp *ProtoDataPoint) Time() time.Time {
 	if dp.Timestamp == nil {
-		return time.Unix(0, 0)
+		return time.Now()
 	}
 
 	return time.Unix(0, *dp.Timestamp*int64(time.Millisecond))

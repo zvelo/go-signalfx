@@ -15,21 +15,21 @@ var (
 	ErrIllegalType = fmt.Errorf("illegal value type")
 )
 
-// A DataPoint is a light wrapper around sfxproto.DataPoint. It adds the ability to
-// set values via callback by using the Getter Interface. Additionally, all
-// operations on it are goroutine/thread safe.
+// A DataPoint is a light wrapper around sfxproto.ProtoDataPoint. It adds the
+// ability to set values via callback by using the Getter Interface.
+// Additionally, all operations on it are goroutine/thread safe.
 type DataPoint struct {
-	dp   *sfxproto.ProtoDataPoint
-	get  Getter
-	lock sync.Mutex
+	pdp *sfxproto.ProtoDataPoint
+	get Getter
+	mu  sync.Mutex
 }
 
-// NewDataPoint creates a new DataPoint. val can be nil, any int type, any float type, a
-// string, a pointer to any of those types or a Getter that returns any of those
-// types.
+// NewDataPoint creates a new DataPoint. val can be nil, any int type, any float
+// type, a string, a pointer to any of those types or a Getter that returns any
+// of those types.
 func NewDataPoint(metricType sfxproto.MetricType, metric string, val interface{}, dims sfxproto.Dimensions) (*DataPoint, error) {
 	ret := &DataPoint{
-		dp: &sfxproto.ProtoDataPoint{
+		pdp: &sfxproto.ProtoDataPoint{
 			Metric:     proto.String(metric),
 			MetricType: metricType.Enum(),
 			Value:      &sfxproto.Datum{},
@@ -37,7 +37,7 @@ func NewDataPoint(metricType sfxproto.MetricType, metric string, val interface{}
 	}
 
 	if dims != nil {
-		ret.dp.Dimensions = dims.List()
+		ret.pdp.Dimensions = dims.List()
 	}
 
 	ret.SetTime(time.Now())
@@ -50,116 +50,116 @@ func NewDataPoint(metricType sfxproto.MetricType, metric string, val interface{}
 }
 
 // Equal returns whether or not two DataPoint objects are equal
-func (m *DataPoint) Equal(val *DataPoint) bool {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (dp *DataPoint) Equal(val *DataPoint) bool {
+	dp.lock()
+	defer dp.unlock()
 
-	val.lock.Lock()
-	defer val.lock.Unlock()
+	val.mu.Lock()
+	defer val.mu.Unlock()
 
-	if !m.dp.Equal(val.dp) {
-		return false
+	if dp.get != nil || val.get != nil {
+		return dp.get == val.get
 	}
 
-	return m.get == val.get
+	return dp.pdp.Equal(val.pdp)
 }
 
 // Clone returns a DataPoint with a deep copy of the underlying DataPoint. If there
 // is a Getter, the interface is copied, but it is not a deep copy.
-func (m *DataPoint) Clone() *DataPoint {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (dp *DataPoint) Clone() *DataPoint {
+	dp.lock()
+	defer dp.unlock()
 
 	return &DataPoint{
-		dp:  m.dp.Clone(),
-		get: m.get,
+		pdp: dp.pdp.Clone(),
+		get: dp.get,
 	}
 }
 
 // Time returns the timestamp of the DataPoint
-func (m *DataPoint) Time() time.Time {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (dp *DataPoint) Time() time.Time {
+	dp.lock()
+	defer dp.unlock()
 
-	return m.dp.Time()
+	return dp.pdp.Time()
 }
 
 // SetTime sets the timestamp of the DataPoint
-func (m *DataPoint) SetTime(t time.Time) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (dp *DataPoint) SetTime(t time.Time) {
+	dp.lock()
+	defer dp.unlock()
 
-	m.dp.SetTime(t)
+	dp.pdp.SetTime(t)
 }
 
 // Metric returns the metric name of the DataPoint
-func (m *DataPoint) Metric() string {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (dp *DataPoint) Metric() string {
+	dp.lock()
+	defer dp.unlock()
 
-	return *m.dp.Metric
+	return *dp.pdp.Metric
 }
 
 // SetMetric sets the metric name of the DataPoint
-func (m *DataPoint) SetMetric(name string) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (dp *DataPoint) SetMetric(name string) {
+	dp.lock()
+	defer dp.unlock()
 
-	m.dp.Metric = proto.String(name)
+	dp.pdp.Metric = proto.String(name)
 }
 
 // Type returns the MetricType of the DataPoint
-func (m *DataPoint) Type() sfxproto.MetricType {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (dp *DataPoint) Type() sfxproto.MetricType {
+	dp.lock()
+	defer dp.unlock()
 
-	return *m.dp.MetricType
+	return *dp.pdp.MetricType
 }
 
 // Dimensions returns a copy of the dimensions of the DataPoint. Changes are not
 // reflected inside the DataPoint itself.
-func (m *DataPoint) Dimensions() sfxproto.Dimensions {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (dp *DataPoint) Dimensions() sfxproto.Dimensions {
+	dp.lock()
+	defer dp.unlock()
 
-	return sfxproto.NewDimensions(m.dp.Dimensions)
+	return sfxproto.NewDimensions(dp.pdp.Dimensions)
 }
 
 // SetDimension adds or overwrites the dimension at key with value
-func (m *DataPoint) SetDimension(key, value string) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (dp *DataPoint) SetDimension(key, value string) {
+	dp.lock()
+	defer dp.unlock()
 
-	for _, dim := range m.dp.Dimensions {
+	for _, dim := range dp.pdp.Dimensions {
 		if *dim.Key == key {
 			*dim.Value = value
 			return
 		}
 	}
 
-	m.dp.Dimensions = append(m.dp.Dimensions, &sfxproto.Dimension{
+	dp.pdp.Dimensions = append(dp.pdp.Dimensions, &sfxproto.Dimension{
 		Key:   proto.String(key),
 		Value: proto.String(value),
 	})
 }
 
 // SetDimensions adds or overwrites multiple dimensions
-func (m *DataPoint) SetDimensions(dims sfxproto.Dimensions) {
+func (dp *DataPoint) SetDimensions(dims sfxproto.Dimensions) {
 	for key, value := range dims {
-		m.SetDimension(key, value)
+		dp.SetDimension(key, value)
 	}
 }
 
 // RemoveDimension removes one or more dimensions with the given keys
-func (m *DataPoint) RemoveDimension(keys ...string) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (dp *DataPoint) RemoveDimension(keys ...string) {
+	dp.lock()
+	defer dp.unlock()
 
 Loop:
 	for _, key := range keys {
-		for i, dim := range m.dp.Dimensions {
+		for i, dim := range dp.pdp.Dimensions {
 			if *dim.Key == key {
-				m.dp.Dimensions = append(m.dp.Dimensions[:i], m.dp.Dimensions[i+1:]...)
+				dp.pdp.Dimensions = append(dp.pdp.Dimensions[:i], dp.pdp.Dimensions[i+1:]...)
 				continue Loop
 			}
 		}
@@ -167,82 +167,82 @@ Loop:
 }
 
 // StrValue returns the string value of the Datum of the underlying DataPoint
-func (m *DataPoint) StrValue() string {
-	m.update() // ignore error as it is reflected in the returned value
+func (dp *DataPoint) StrValue() string {
+	dp.update() // ignore error as it is reflected in the returned value
 
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	dp.lock()
+	defer dp.unlock()
 
-	if m.dp.Value.StrValue == nil {
+	if dp.pdp.Value.StrValue == nil {
 		return ""
 	}
 
-	return *m.dp.Value.StrValue
+	return *dp.pdp.Value.StrValue
 }
 
 // IntValue returns the integer value of the Datum of the underlying DataPoint
-func (m *DataPoint) IntValue() int64 {
-	m.update() // ignore error as it is reflected in the returned value
+func (dp *DataPoint) IntValue() int64 {
+	dp.update() // ignore error as it is reflected in the returned value
 
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	dp.lock()
+	defer dp.unlock()
 
-	if m.dp.Value.IntValue == nil {
+	if dp.pdp.Value.IntValue == nil {
 		return 0
 	}
 
-	return *m.dp.Value.IntValue
+	return *dp.pdp.Value.IntValue
 }
 
 // DoubleValue returns the integer value of the Datum of the underlying DataPoint
-func (m *DataPoint) DoubleValue() float64 {
-	m.update() // ignore error as it is reflected in the returned value
+func (dp *DataPoint) DoubleValue() float64 {
+	dp.update() // ignore error as it is reflected in the returned value
 
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	dp.lock()
+	defer dp.unlock()
 
-	if m.dp.Value.DoubleValue == nil {
+	if dp.pdp.Value.DoubleValue == nil {
 		return 0
 	}
 
-	return *m.dp.Value.DoubleValue
+	return *dp.pdp.Value.DoubleValue
 }
 
 // Set the value of the DataPoint. It can be nil, any int type, any float type, a
 // string, a pointer to any of those types or a Getter that returns any of those
 // types.
-func (m *DataPoint) Set(val interface{}) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (dp *DataPoint) Set(val interface{}) error {
+	dp.lock()
+	defer dp.unlock()
 
-	m.dp.Value.Reset()
-	m.get = nil
+	dp.pdp.Value.Reset()
+	dp.get = nil
 
 	if val == nil {
 		return nil
 	}
 
 	if get, ok := val.(Getter); ok {
-		m.get = get
+		dp.get = get
 
 		var err error
-		if val, err = m.get.Get(); err != nil {
+		if val, err = dp.get.Get(); err != nil {
 			return err
 		}
 	}
 
 	if val, err := toInt64(val); err == nil {
-		m.dp.Value.IntValue = proto.Int64(val)
+		dp.pdp.Value.IntValue = proto.Int64(val)
 		return nil
 	}
 
 	if val, err := toFloat64(val); err == nil {
-		m.dp.Value.DoubleValue = proto.Float64(val)
+		dp.pdp.Value.DoubleValue = proto.Float64(val)
 		return nil
 	}
 
 	if val, err := toString(val); err == nil {
-		m.dp.Value.StrValue = proto.String(val)
+		dp.pdp.Value.StrValue = proto.String(val)
 		return nil
 	}
 
@@ -264,14 +264,22 @@ func NewCounter(metric string, val interface{}, dims sfxproto.Dimensions) (*Data
 	return NewDataPoint(sfxproto.MetricType_COUNTER, metric, val, dims)
 }
 
-func (m *DataPoint) update() error {
-	m.lock.Lock()
+func (dp *DataPoint) lock() {
+	dp.mu.Lock()
+}
 
-	if m.get == nil {
-		m.lock.Unlock()
+func (dp *DataPoint) unlock() {
+	dp.mu.Unlock()
+}
+
+func (dp *DataPoint) update() error {
+	dp.lock()
+
+	if dp.get == nil {
+		dp.unlock()
 		return nil
 	}
 
-	m.lock.Unlock()
-	return m.Set(m.get)
+	dp.unlock()
+	return dp.Set(dp.get)
 }

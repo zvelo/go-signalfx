@@ -18,7 +18,7 @@ type Reporter struct {
 	buckets            map[*Bucket]interface{}
 	preReportCallbacks []func()
 	datapointCallbacks []DataPointCallback
-	lock               sync.Mutex
+	mu                 sync.Mutex
 }
 
 func NewReporter(config *Config, defaultDimensions sfxproto.Dimensions) *Reporter {
@@ -30,51 +30,59 @@ func NewReporter(config *Config, defaultDimensions sfxproto.Dimensions) *Reporte
 	}
 }
 
+func (r *Reporter) lock() {
+	r.mu.Lock()
+}
+
+func (r *Reporter) unlock() {
+	r.mu.Unlock()
+}
+
 func (r *Reporter) NewBucket(metric string, dimensions sfxproto.Dimensions) *Bucket {
 	ret := NewBucket(metric, dimensions)
 
-	r.lock.Lock()
-	defer r.lock.Unlock()
+	r.lock()
+	defer r.unlock()
 
 	r.buckets[ret] = nil
 	return ret
 }
 
 func (r *Reporter) NewCumulative(metric string, val interface{}, dims sfxproto.Dimensions) *DataPoint {
-	m, _ := NewCumulative(metric, val, r.defaultDimensions.Concat(dims))
-	r.datapoints.Add(m)
-	return m
+	dp, _ := NewCumulative(metric, val, r.defaultDimensions.Concat(dims))
+	r.datapoints.Add(dp)
+	return dp
 }
 
 func (r *Reporter) NewGauge(metric string, val interface{}, dims sfxproto.Dimensions) *DataPoint {
-	m, _ := NewGauge(metric, val, r.defaultDimensions.Concat(dims))
-	r.datapoints.Add(m)
-	return m
+	dp, _ := NewGauge(metric, val, r.defaultDimensions.Concat(dims))
+	r.datapoints.Add(dp)
+	return dp
 }
 
 func (r *Reporter) NewCounter(metric string, val interface{}, dims sfxproto.Dimensions) *DataPoint {
-	m, _ := NewCounter(metric, val, r.defaultDimensions.Concat(dims))
-	r.datapoints.Add(m)
-	return m
+	dp, _ := NewCounter(metric, val, r.defaultDimensions.Concat(dims))
+	r.datapoints.Add(dp)
+	return dp
 }
 
 func (r *Reporter) NewInc(metric string, dims sfxproto.Dimensions) *Inc {
 	inc := NewInc(0)
-	m, _ := NewCounter(metric, inc, r.defaultDimensions.Concat(dims))
-	if m == nil {
+	dp, _ := NewCounter(metric, inc, r.defaultDimensions.Concat(dims))
+	if dp == nil {
 		return nil
 	}
-	r.datapoints.Add(m)
+	r.datapoints.Add(dp)
 	return inc
 }
 
 func (r *Reporter) NewCumulativeInc(metric string, dims sfxproto.Dimensions) *Inc {
 	inc := NewInc(0)
-	m, _ := NewCumulative(metric, inc, r.defaultDimensions.Concat(dims))
-	if m == nil {
+	dp, _ := NewCumulative(metric, inc, r.defaultDimensions.Concat(dims))
+	if dp == nil {
 		return nil
 	}
-	r.datapoints.Add(m)
+	r.datapoints.Add(dp)
 	return inc
 }
 
@@ -82,21 +90,21 @@ func (r *Reporter) AddDataPoint(vals ...*DataPoint) {
 	r.datapoints.Add(vals...)
 }
 
-func (r *Reporter) AddDataPoints(ms *DataPoints) {
-	r.datapoints.Concat(ms)
+func (r *Reporter) AddDataPoints(dps *DataPoints) {
+	r.datapoints.Concat(dps)
 }
 
-func (r *Reporter) RemoveDataPoint(ms ...*DataPoint) {
-	r.datapoints.Remove(ms...)
+func (r *Reporter) RemoveDataPoint(dps ...*DataPoint) {
+	r.datapoints.Remove(dps...)
 }
 
-func (r *Reporter) RemoveDataPoints(ms *DataPoints) {
-	r.datapoints.RemoveDataPoints(ms)
+func (r *Reporter) RemoveDataPoints(dps *DataPoints) {
+	r.datapoints.RemoveDataPoints(dps)
 }
 
 func (r *Reporter) RemoveBucket(bs ...*Bucket) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+	r.lock()
+	defer r.unlock()
 
 	for _, b := range bs {
 		delete(r.buckets, b)
@@ -106,15 +114,15 @@ func (r *Reporter) RemoveBucket(bs ...*Bucket) {
 // AddPreReportCallback adds a function that is called before Report().  This is useful for refetching
 // things like runtime.Memstats() so they are only fetched once per report() call
 func (r *Reporter) AddPreReportCallback(f func()) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+	r.lock()
+	defer r.unlock()
 	r.preReportCallbacks = append(r.preReportCallbacks, f)
 }
 
 // AddDataPointsCallback adds a callback that itself will generate datapoints to report
 func (r *Reporter) AddDataPointsCallback(f DataPointCallback) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+	r.lock()
+	defer r.unlock()
 	r.datapointCallbacks = append(r.datapointCallbacks, f)
 }
 
@@ -125,8 +133,8 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		return nil, ctx.Err()
 	}
 
-	r.lock.Lock()
-	defer r.lock.Unlock()
+	r.lock()
+	defer r.unlock()
 
 	for _, f := range r.preReportCallbacks {
 		f()
@@ -142,12 +150,12 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		ret.Concat(b.DataPoints(r.defaultDimensions))
 	}
 
-	dps, err := ret.DataPoints()
+	pdps, err := ret.ProtoDataPoints()
 	if err != nil {
 		return nil, err
 	}
 
-	if err = r.client.Submit(ctx, dps); err != nil {
+	if err = r.client.Submit(ctx, pdps); err != nil {
 		return nil, err
 	}
 
