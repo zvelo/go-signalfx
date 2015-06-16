@@ -10,7 +10,7 @@ import (
 // A Bucket trakcs groups of values, reporting the min/max as gauges, and
 // count/sum/sum of squares as a cumulative counter
 type Bucket struct {
-	Metric       string
+	metric       string
 	dimensions   sfxproto.Dimensions
 	count        int64
 	min          int64
@@ -26,6 +26,52 @@ func (b *Bucket) lock() {
 
 func (b *Bucket) unlock() {
 	b.mu.Unlock()
+}
+
+func (b *Bucket) Metric() string {
+	b.lock()
+	defer b.unlock()
+
+	return b.metric
+}
+
+func (b *Bucket) SetMetric(name string) {
+	b.lock()
+	defer b.unlock()
+
+	b.metric = name
+}
+
+func (b *Bucket) Dimensions() sfxproto.Dimensions {
+	b.lock()
+	defer b.unlock()
+
+	return b.dimensions.Clone()
+}
+
+func (b *Bucket) SetDimension(key, value string) {
+	b.lock()
+	defer b.unlock()
+
+	b.dimensions[key] = value
+}
+
+func (b *Bucket) SetDimensions(dims sfxproto.Dimensions) {
+	b.lock()
+	defer b.unlock()
+
+	for key, value := range dims {
+		b.dimensions[key] = value
+	}
+}
+
+func (b *Bucket) RemoveDimension(keys ...string) {
+	b.lock()
+	defer b.unlock()
+
+	for _, key := range keys {
+		delete(b.dimensions, key)
+	}
 }
 
 func (b *Bucket) Count() int64 {
@@ -65,7 +111,7 @@ func (b *Bucket) SumOfSquares() int64 {
 
 func NewBucket(metric string, dimensions sfxproto.Dimensions) *Bucket {
 	return &Bucket{
-		Metric:     metric,
+		metric:     metric,
 		dimensions: dimensions,
 	}
 }
@@ -106,7 +152,7 @@ func (b *Bucket) CountDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock()
 	defer b.unlock()
 
-	dp, _ := NewCounter(b.Metric, b.count, b.dimFor(defaultDims, "count"))
+	dp, _ := NewCounter(b.metric, b.count, b.dimFor(defaultDims, "count"))
 	return dp
 }
 
@@ -114,7 +160,7 @@ func (b *Bucket) SumDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.lock()
 	defer b.unlock()
 
-	dp, _ := NewCounter(b.Metric, b.sum, b.dimFor(defaultDims, "sum"))
+	dp, _ := NewCounter(b.metric, b.sum, b.dimFor(defaultDims, "sum"))
 	return dp
 }
 
@@ -122,7 +168,7 @@ func (b *Bucket) SumOfSquaresDataPoint(defaultDims sfxproto.Dimensions) *DataPoi
 	b.lock()
 	defer b.unlock()
 
-	dp, _ := NewCounter(b.Metric, b.sumOfSquares, b.dimFor(defaultDims, "sumsquare"))
+	dp, _ := NewCounter(b.metric, b.sumOfSquares, b.dimFor(defaultDims, "sumsquare"))
 	return dp
 }
 
@@ -135,7 +181,7 @@ func (b *Bucket) MinDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.min, min = math.MaxInt64, b.min
 
 	if b.count != 0 && min != math.MaxInt64 {
-		dp, _ := NewGauge(b.Metric+".min", min, b.dimFor(defaultDims, "min"))
+		dp, _ := NewGauge(b.metric+".min", min, b.dimFor(defaultDims, "min"))
 		return dp
 	}
 
@@ -151,7 +197,7 @@ func (b *Bucket) MaxDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 	b.max, max = math.MinInt64, b.max
 
 	if b.count != 0 && max != math.MinInt64 {
-		dp, _ := NewGauge(b.Metric+".max", max, b.dimFor(defaultDims, "max"))
+		dp, _ := NewGauge(b.metric+".max", max, b.dimFor(defaultDims, "max"))
 		return dp
 	}
 
