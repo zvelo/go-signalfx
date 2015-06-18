@@ -85,11 +85,13 @@ func (pdps *ProtoDataPoints) Append(val *ProtoDataPoints) *ProtoDataPoints {
 }
 
 // Remove ProtoDataPoint(s) from the set
-func (pdps *ProtoDataPoints) Remove(vals ...*ProtoDataPoint) {
+func (pdps *ProtoDataPoints) Remove(vals ...*ProtoDataPoint) *ProtoDataPoints {
 	pdps.lock.Lock()
 	defer pdps.lock.Unlock()
 
 	for _, val := range vals {
 		delete(pdps.data, val)
 	}
+
+	return pdps
 }

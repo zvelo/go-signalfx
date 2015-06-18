@@ -13,7 +13,7 @@ func (pdp *ProtoDataPoint) String() string {
 		metric = *pdp.Metric
 	}
 
-	return fmt.Sprintf("DP[%s\t%s\t%s\t%d\t%s]", metric, pdp.Dimensions, pdp.Value, pdp.MetricType, pdp.Time())
+	return fmt.Sprintf("DP[%s\t%s\t%s\t%d\t%s]", metric, pdp.Dimensions, pdp.Value, *pdp.MetricType, pdp.Time())
 }
 
 // Time returns the timestamp of the ProtoDataPoint
