@@ -19,7 +19,8 @@ type ProtoDataPoints struct {
 	lock sync.Mutex
 }
 
-// NewProtoDataPoints creates a new ProtoDataPoints object
+// NewProtoDataPoints creates a new ProtoDataPoints object with expected size of
+// l
 func NewProtoDataPoints(l int) *ProtoDataPoints {
 	return &ProtoDataPoints{
 		data: make(map[*ProtoDataPoint]interface{}, l),
@@ -60,12 +61,12 @@ func (pdps *ProtoDataPoints) Marshal() ([]byte, error) {
 }
 
 // Add a new DataPoint to the list
-func (pdps *ProtoDataPoints) Add(dataPoint *ProtoDataPoint) *ProtoDataPoints {
-	if dataPoint != nil && dataPoint.Metric != nil && len(*dataPoint.Metric) > 0 {
+func (pdps *ProtoDataPoints) Add(protoDataPoint *ProtoDataPoint) *ProtoDataPoints {
+	if protoDataPoint != nil && protoDataPoint.Metric != nil && len(*protoDataPoint.Metric) > 0 {
 		pdps.lock.Lock()
 		defer pdps.lock.Unlock()
 
-		pdps.data[dataPoint] = nil
+		pdps.data[protoDataPoint] = nil
 	}
 
 	return pdps

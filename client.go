@@ -33,7 +33,7 @@ func (c *Client) Submit(ctx context.Context, pdps *sfxproto.ProtoDataPoints) err
 	if ctx == nil {
 		ctx = context.Background()
 	} else if ctx.Err() != nil {
-		return ctx.Err()
+		return ErrContext(ctx.Err())
 	}
 
 	jsonBytes, err := pdps.Marshal()
