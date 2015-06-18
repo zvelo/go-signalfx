@@ -34,7 +34,7 @@ clean:
 			exit 1; \
 		fi; \
 		if test -f profile.out; then \
-			cat profile.out | grep -v "mode: set" | grep -v "\.pb\.go:" >> .acc.out; \
+			cat profile.out | grep -v "mode: set" >> .acc.out; \
 		fi; \
 	done
 	@rm -f ./profile.out
