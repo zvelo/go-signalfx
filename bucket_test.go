@@ -1,10 +1,12 @@
 package signalfx
 
 import (
+	"fmt"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/zvelo/go-signalfx/sfxproto"
+	"golang.org/x/net/context"
 )
 
 func TestBucket(t *testing.T) {
@@ -83,4 +85,40 @@ func TestBucket(t *testing.T) {
 			So(b.DataPoints(sfxproto.Dimensions{"a": "b"}).Len(), ShouldEqual, 5)
 		})
 	})
+}
+
+func ExampleBucket() {
+	reporter := NewReporter(NewConfig(), sfxproto.Dimensions{
+		"test_dimension0": "value0",
+		"test_dimension1": "value1",
+	})
+
+	bucket := reporter.NewBucket("TestBucket", sfxproto.Dimensions{
+		"test_bucket_dimension0": "bucket0",
+		"test_bucket_dimension1": "bucket1",
+	})
+
+	bucket.Add(5)
+	bucket.Add(9)
+
+	fmt.Printf("Metric: %s\n", bucket.Metric())
+	fmt.Printf("Count: %d\n", bucket.Count())
+	fmt.Printf("Min: %d\n", bucket.Min())
+	fmt.Printf("Max: %d\n", bucket.Max())
+	fmt.Printf("Sum: %d\n", bucket.Sum())
+	fmt.Printf("SumOfSquares: %d\n", bucket.SumOfSquares())
+
+	dps, err := reporter.Report(context.Background())
+
+	fmt.Printf("Error: %v\nDataPoints: %d", err, dps.Len())
+
+	// Output:
+	// Metric: TestBucket
+	// Count: 2
+	// Min: 5
+	// Max: 9
+	// Sum: 14
+	// SumOfSquares: 106
+	// Error: <nil>
+	// DataPoints: 5
 }

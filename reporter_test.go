@@ -18,12 +18,12 @@ func TestReporter(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		c := NewConfig()
-		So(c, ShouldNotBeNil)
+		config := NewConfig()
+		So(config, ShouldNotBeNil)
 
-		c.URL = ts.URL
+		config.URL = ts.URL
 
-		r := NewReporter(c, nil)
+		r := NewReporter(config, nil)
 		So(r, ShouldNotBeNil)
 
 		So(r.datapoints.Len(), ShouldEqual, 0)
@@ -140,7 +140,7 @@ func TestReporter(t *testing.T) {
 			So(dps, ShouldBeNil)
 			So(err.Error(), ShouldEqual, "context canceled")
 
-			ccopy := c.Clone()
+			ccopy := config.Clone()
 			ccopy.URL = "z" + ts.URL
 			tmpR := NewReporter(ccopy, nil)
 			tmpR.NewBucket("bucket", nil)
@@ -207,30 +207,29 @@ func TestReporter(t *testing.T) {
 func ExampleReporter() {
 	// auth token will be taken from $SFX_API_TOKEN if it exists
 	// for this example, it must be set correctly
-	c := NewConfig()
-	r := NewReporter(c, map[string]string{
+	reporter := NewReporter(NewConfig(), sfxproto.Dimensions{
 		"test_dimension0": "value0",
 		"test_dimension1": "value1",
 	})
 
 	gval := 0
-	gauge := r.NewGauge("TestGauge", Value(&gval), map[string]string{
+	gauge := reporter.NewGauge("TestGauge", Value(&gval), sfxproto.Dimensions{
 		"test_gauge_dimension0": "gauge0",
 		"test_gauge_dimension1": "gauge1",
 	})
 
-	inc, _ := r.NewInc("TestIncrementer", map[string]string{
+	inc, _ := reporter.NewInc("TestIncrementer", sfxproto.Dimensions{
 		"test_incrementer_dimension0": "incrementer0",
 		"test_incrementer_dimension1": "incrementer1",
 	})
 
 	cval := 0
-	cumulative := r.NewCumulative("TestCumulative", Value(&cval), map[string]string{
+	cumulative := reporter.NewCumulative("TestCumulative", Value(&cval), sfxproto.Dimensions{
 		"test_cumulative_dimension0": "cumulative0",
 		"test_cumulative_dimension1": "cumulative1",
 	})
 
-	r.AddPreReportCallback(func() {
+	reporter.AddPreReportCallback(func() {
 		// modify these values safely within this callback
 		// modification of pointer values otherwise is not goroutine safe
 		gval = 7
@@ -241,16 +240,18 @@ func ExampleReporter() {
 	inc.Inc(1)
 	inc.Inc(5)
 
-	_, err := r.Report(context.Background())
+	dps, err := reporter.Report(context.Background())
 
-	fmt.Printf("gauge: %d\n", gauge.IntValue())
-	fmt.Printf("incrementer: %d\n", inc.Value())
-	fmt.Printf("cumulative: %d\n", cumulative.IntValue())
-	fmt.Printf("error: %v\n", err)
+	fmt.Printf("Gauge: %d\n", gauge.IntValue())
+	fmt.Printf("Incrementer: %d\n", inc.Value())
+	fmt.Printf("Cumulative: %d\n", cumulative.IntValue())
+	fmt.Printf("Error: %v\n", err)
+	fmt.Printf("DataPoints: %d\n", dps.Len())
 
 	// Output:
-	// gauge: 7
-	// incrementer: 6
-	// cumulative: 1
-	// error: <nil>
+	// Gauge: 7
+	// Incrementer: 6
+	// Cumulative: 1
+	// Error: <nil>
+	// DataPoints: 3
 }
