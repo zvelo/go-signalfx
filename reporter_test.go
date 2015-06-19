@@ -13,8 +13,9 @@ import (
 )
 
 func TestReporter(t *testing.T) {
-	Convey("Testing Reporter", t, func() {
+	Convey("Testing Reporter", t, func(c C) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c.So(r.Header.Get(TokenHeader), ShouldEqual, "abcdefg")
 			w.Write([]byte(`"OK"`))
 		}))
 		defer ts.Close()
@@ -23,79 +24,82 @@ func TestReporter(t *testing.T) {
 		So(config, ShouldNotBeNil)
 
 		config.URL = ts.URL
+		config.AuthToken = "abcdefg"
 
-		r := NewReporter(config, nil)
-		So(r, ShouldNotBeNil)
+		reporter := NewReporter(config, nil)
+		So(reporter, ShouldNotBeNil)
 
-		So(r.datapoints.Len(), ShouldEqual, 0)
-		So(len(r.buckets), ShouldEqual, 0)
+		So(reporter.datapoints.Len(), ShouldEqual, 0)
+		So(len(reporter.buckets), ShouldEqual, 0)
 
 		Convey("working with datapoints", func() {
 			// getting datapoints
 
-			bucket := r.NewBucket("bucket", nil)
+			bucket := reporter.NewBucket("bucket", nil)
 			So(bucket, ShouldNotBeNil)
-			So(r.datapoints.Len(), ShouldEqual, 0)
-			So(len(r.buckets), ShouldEqual, 1)
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			So(len(reporter.buckets), ShouldEqual, 1)
 
-			cumulative := r.NewCumulative("cumulative", Value(0), nil)
+			cumulative := reporter.NewCumulative("cumulative", Value(0), nil)
 			So(cumulative, ShouldNotBeNil)
-			So(r.datapoints.Len(), ShouldEqual, 1)
-			So(len(r.buckets), ShouldEqual, 1)
+			So(reporter.datapoints.Len(), ShouldEqual, 1)
+			So(len(reporter.buckets), ShouldEqual, 1)
 
-			gauge := r.NewGauge("gauge", Value(0), nil)
+			gauge := reporter.NewGauge("gauge", Value(0), nil)
 			So(gauge, ShouldNotBeNil)
-			So(r.datapoints.Len(), ShouldEqual, 2)
-			So(len(r.buckets), ShouldEqual, 1)
+			So(reporter.datapoints.Len(), ShouldEqual, 2)
+			So(len(reporter.buckets), ShouldEqual, 1)
 
-			counter := r.NewCounter("counter", Value(0), nil)
+			counter := reporter.NewCounter("counter", Value(0), nil)
 			So(counter, ShouldNotBeNil)
-			So(r.datapoints.Len(), ShouldEqual, 3)
-			So(len(r.buckets), ShouldEqual, 1)
+			So(reporter.datapoints.Len(), ShouldEqual, 3)
+			So(len(reporter.buckets), ShouldEqual, 1)
 
 			// removing datapoints
 
-			r.RemoveDataPoint(cumulative)
-			So(r.datapoints.Len(), ShouldEqual, 2)
-			So(len(r.buckets), ShouldEqual, 1)
+			reporter.RemoveDataPoint(cumulative)
+			So(reporter.datapoints.Len(), ShouldEqual, 2)
+			So(len(reporter.buckets), ShouldEqual, 1)
 
-			r.RemoveDataPoint(cumulative)
-			So(r.datapoints.Len(), ShouldEqual, 2)
-			So(len(r.buckets), ShouldEqual, 1)
+			reporter.RemoveDataPoint(cumulative)
+			So(reporter.datapoints.Len(), ShouldEqual, 2)
+			So(len(reporter.buckets), ShouldEqual, 1)
 
-			r.RemoveDataPoint(gauge, counter)
-			So(r.datapoints.Len(), ShouldEqual, 0)
-			So(len(r.buckets), ShouldEqual, 1)
+			reporter.RemoveDataPoint(gauge, counter)
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			So(len(reporter.buckets), ShouldEqual, 1)
 
-			r.AddDataPoint(gauge)
-			So(r.datapoints.Len(), ShouldEqual, 1)
-			So(len(r.buckets), ShouldEqual, 1)
+			reporter.AddDataPoint(gauge)
+			So(reporter.datapoints.Len(), ShouldEqual, 1)
+			So(len(reporter.buckets), ShouldEqual, 1)
 
-			r.AddDataPoint(cumulative, counter, gauge)
-			So(r.datapoints.Len(), ShouldEqual, 3)
-			So(len(r.buckets), ShouldEqual, 1)
+			reporter.AddDataPoint(cumulative, counter, gauge)
+			So(reporter.datapoints.Len(), ShouldEqual, 3)
+			So(len(reporter.buckets), ShouldEqual, 1)
 
 			datapoints := NewDataPoints(3)
 			datapoints.Add(cumulative, gauge, counter)
 			So(datapoints.Len(), ShouldEqual, 3)
 
-			r.RemoveDataPoints(datapoints)
-			So(r.datapoints.Len(), ShouldEqual, 0)
-			So(len(r.buckets), ShouldEqual, 1)
+			reporter.RemoveDataPoints(datapoints)
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			So(len(reporter.buckets), ShouldEqual, 1)
 
-			r.RemoveBucket(bucket)
-			So(r.datapoints.Len(), ShouldEqual, 0)
-			So(len(r.buckets), ShouldEqual, 0)
+			reporter.RemoveBucket(bucket)
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			So(len(reporter.buckets), ShouldEqual, 0)
 
-			r.AddDataPoints(datapoints)
-			So(r.datapoints.Len(), ShouldEqual, 3)
-			So(len(r.buckets), ShouldEqual, 0)
+			reporter.AddDataPoints(datapoints)
+			So(reporter.datapoints.Len(), ShouldEqual, 3)
+			So(len(reporter.buckets), ShouldEqual, 0)
 		})
 
-		Convey("adding datapoint callbacks", func() {
-			So(r.datapoints.Len(), ShouldEqual, 0)
+		Convey("callbacks should be fired", func() {
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
 
+			cb := 0
 			addDataPointF := func(dims sfxproto.Dimensions) *DataPoints {
+				cb++
 				count0, err := NewCounter("count0", Value(0), nil)
 				if err != nil {
 					return nil
@@ -114,48 +118,76 @@ func TestReporter(t *testing.T) {
 			}
 
 			addDataPointErrF := func(dims sfxproto.Dimensions) *DataPoints {
+				cb++
 				return nil
 			}
 
-			r.AddDataPointsCallback(addDataPointF)
-			r.AddDataPointsCallback(addDataPointErrF)
+			reporter.AddPreReportCallback(func() { cb++ })
+			reporter.AddDataPointsCallback(addDataPointF)
+			reporter.AddDataPointsCallback(addDataPointErrF)
 
-			dps, err := r.Report(nil)
+			dps, err := reporter.Report(nil)
 			So(err, ShouldBeNil)
 			So(dps, ShouldNotBeNil)
 			So(dps.Len(), ShouldEqual, 2)
-			So(r.datapoints.Len(), ShouldEqual, 0)
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			So(cb, ShouldEqual, 3)
 		})
 
 		Convey("reporting should work", func() {
-			ctx, cancelF := context.WithCancel(context.Background())
-
-			r.NewBucket("bucket", nil)
-			dps, err := r.Report(ctx)
+			reporter.NewBucket("bucket", nil)
+			dps, err := reporter.Report(context.Background())
 			So(err, ShouldBeNil)
 			So(dps.Len(), ShouldEqual, 3)
+		})
+
+		Convey("report should handle a previously canceled context", func() {
+			// test report with already canceled context
+			ctx, cancelF := context.WithCancel(context.Background())
 
 			cancelF()
-			dps, err = r.Report(ctx)
+			<-ctx.Done()
+
+			dps, err := reporter.Report(ctx)
 			So(err, ShouldNotBeNil)
 			So(dps, ShouldBeNil)
 			So(err.Error(), ShouldEqual, "context canceled")
+		})
 
+		Convey("report should handle an 'in-flight' context cancellation", func() {
+			reporter.NewBucket("bucket", nil)
+			ctx, cancelF := context.WithCancel(context.Background())
+			go cancelF()
+			dps, err := reporter.Report(ctx)
+			So(err, ShouldNotBeNil)
+			So(dps, ShouldBeNil)
+			So(err.Error(), ShouldEqual, "context canceled")
+		})
+
+		Convey("no metrics", func() {
+			dps, err := reporter.Report(context.Background())
+			So(err, ShouldNotBeNil)
+			So(dps, ShouldBeNil)
+			So(err.Error(), ShouldEqual, "no data to marshal")
+		})
+
+		Convey("report should fail with a bad url", func() {
 			ccopy := config.Clone()
 			ccopy.URL = "z" + ts.URL
 			tmpR := NewReporter(ccopy, nil)
 			tmpR.NewBucket("bucket", nil)
-			dps, err = tmpR.Report(context.Background())
+			dps, err := tmpR.Report(context.Background())
 			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "Post z"+ts.URL+": unsupported protocol scheme \"zhttp\"")
 			So(dps, ShouldBeNil)
 		})
 
 		Convey("incrementers should work", func() {
-			inc, dp := r.NewInc("Incrementer", nil)
+			inc, dp := reporter.NewInc("Incrementer", nil)
 			So(dp, ShouldNotBeNil)
 			So(inc, ShouldNotBeNil)
-			So(r.datapoints.Len(), ShouldEqual, 1)
-			So(len(r.buckets), ShouldEqual, 0)
+			So(reporter.datapoints.Len(), ShouldEqual, 1)
+			So(len(reporter.buckets), ShouldEqual, 0)
 
 			So(inc.Value(), ShouldEqual, 0)
 			v, err := inc.Get()
@@ -177,10 +209,10 @@ func TestReporter(t *testing.T) {
 			So(v, ShouldEqual, 6)
 			So(inc.Value(), ShouldEqual, dp.IntValue())
 
-			inc, dp = r.NewCumulativeInc("CumulativeIncrementer", nil)
+			inc, dp = reporter.NewCumulativeInc("CumulativeIncrementer", nil)
 			So(inc, ShouldNotBeNil)
-			So(r.datapoints.Len(), ShouldEqual, 2)
-			So(len(r.buckets), ShouldEqual, 0)
+			So(reporter.datapoints.Len(), ShouldEqual, 2)
+			So(len(reporter.buckets), ShouldEqual, 0)
 
 			So(inc.Value(), ShouldEqual, 0)
 			v, err = inc.Get()

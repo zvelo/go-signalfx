@@ -25,27 +25,7 @@ var (
 	mode = defaultMode
 )
 
-func testHandler(w http.ResponseWriter, r *http.Request) {
-	switch mode {
-	default:
-		w.Write([]byte(`"OK"`))
-	case errStatusMode:
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`"OK"`))
-	case errJSONMode:
-		w.Write([]byte("OK"))
-	case errInvalidBodyMode:
-		w.Write([]byte(`"NOT OK"`))
-	}
-}
-
 func TestClient(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(testHandler))
-	defer ts.Close()
-
-	config := NewConfig()
-	config.URL = ts.URL
-
 	pdps := sfxproto.NewProtoDataPoints(1).Add(&sfxproto.ProtoDataPoint{
 		Metric:     proto.String("TestClient"),
 		MetricType: sfxproto.MetricType_COUNTER.Enum(),
@@ -61,50 +41,82 @@ func TestClient(t *testing.T) {
 		},
 	})
 
-	Convey("Testing Client", t, func() {
-		c := NewClient(config)
-		So(c, ShouldNotBeNil)
+	Convey("Testing Client", t, func(c C) {
+		testHandler := func(w http.ResponseWriter, r *http.Request) {
+			c.So(r.Header.Get(TokenHeader), ShouldEqual, "abcdefg")
 
-		err := c.Submit(nil, pdps)
-		So(err, ShouldBeNil)
+			switch mode {
+			default:
+				w.Write([]byte(`"OK"`))
+			case errStatusMode:
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(`"OK"`))
+			case errJSONMode:
+				w.Write([]byte("OK"))
+			case errInvalidBodyMode:
+				w.Write([]byte(`"NOT OK"`))
+			}
+		}
 
-		ctx, cancelF := context.WithCancel(context.Background())
-		err = c.Submit(ctx, pdps)
-		So(err, ShouldBeNil)
+		ts := httptest.NewServer(http.HandlerFunc(testHandler))
+		defer ts.Close()
 
-		cancelF()
-		err = c.Submit(ctx, pdps)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "context canceled")
+		config := NewConfig()
+		config.AuthToken = "abcdefg"
+		config.URL = ts.URL
 
-		ctx, cancelF = context.WithCancel(context.Background())
-		go cancelF() // get an "in-flight" cancellation
-		err = c.Submit(ctx, pdps)
+		client := NewClient(config)
+		So(client, ShouldNotBeNil)
 
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "context canceled")
+		Convey("submit should work", func() {
+			err := client.Submit(nil, pdps)
+			So(err, ShouldBeNil)
 
-		mode = errStatusMode
-		err = c.Submit(context.Background(), pdps)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, `"OK": invalid status code: 404`)
-		So(err, ShouldResemble, &ErrStatus{[]byte(`"OK"`), http.StatusNotFound})
+			err = client.Submit(context.Background(), pdps)
+			So(err, ShouldBeNil)
+		})
 
-		mode = errJSONMode
-		err = c.Submit(context.Background(), pdps)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "OK")
-		So(err, ShouldResemble, &ErrJSON{[]byte("OK")})
+		Convey("submit should handle a previously canceled context", func() {
+			ctx, cancelF := context.WithCancel(context.Background())
+			cancelF()
+			<-ctx.Done()
 
-		mode = errInvalidBodyMode
-		err = c.Submit(context.Background(), pdps)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "NOT OK")
-		So(err, ShouldResemble, &ErrInvalidBody{"NOT OK"})
+			err := client.Submit(ctx, pdps)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "context canceled")
+		})
 
-		pdps = nil
-		err = c.Submit(context.Background(), pdps)
-		So(err, ShouldNotBeNil)
-		So(err, ShouldResemble, ErrMarshal(errors.New("no data to marshal")))
+		Convey("submit should handle an 'in-flight' context cancellation", func() {
+			ctx, cancelF := context.WithCancel(context.Background())
+			go cancelF()
+			err := client.Submit(ctx, pdps)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "context canceled")
+		})
+
+		Convey("submit should handle various server errors properly", func() {
+			mode = errStatusMode
+			err := client.Submit(context.Background(), pdps)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, `"OK": invalid status code: 404`)
+			So(err, ShouldResemble, &ErrStatus{[]byte(`"OK"`), http.StatusNotFound})
+
+			mode = errJSONMode
+			err = client.Submit(context.Background(), pdps)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "OK")
+			So(err, ShouldResemble, &ErrJSON{[]byte("OK")})
+
+			mode = errInvalidBodyMode
+			err = client.Submit(context.Background(), pdps)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "NOT OK")
+			So(err, ShouldResemble, &ErrInvalidBody{"NOT OK"})
+
+			pdps = nil
+			err = client.Submit(context.Background(), pdps)
+			So(err, ShouldNotBeNil)
+			So(err, ShouldResemble, ErrMarshal(errors.New("no data to marshal")))
+		})
 	})
 }

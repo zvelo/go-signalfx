@@ -24,7 +24,8 @@ type Reporter struct {
 }
 
 // NewReporter returns a new Reporter object. Any dimensions supplied will be
-// appended to all DataPoints sent to SignalFX.
+// appended to all DataPoints sent to SignalFX. config is copied, so future
+// changes to the external config object are not reflected within the reporter.
 func NewReporter(config *Config, defaultDimensions sfxproto.Dimensions) *Reporter {
 	return &Reporter{
 		client:            NewClient(config),

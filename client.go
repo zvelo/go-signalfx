@@ -10,6 +10,11 @@ import (
 	"golang.org/x/net/context"
 )
 
+const (
+	// TokenHeader is the header on which SignalFx looks for the api token
+	TokenHeader = "X-SF-TOKEN"
+)
+
 // A Client is used to send datapoints to SignalFx
 type Client struct {
 	config *Config
@@ -17,7 +22,8 @@ type Client struct {
 	client *http.Client
 }
 
-// NewClient returns a new Client
+// NewClient returns a new Client. config is copied, so future changes to the
+// external config object are not reflected within the client.
 func NewClient(config *Config) *Client {
 	tr := config.Transport()
 
@@ -43,8 +49,8 @@ func (c *Client) Submit(ctx context.Context, pdps *sfxproto.ProtoDataPoints) err
 
 	req, _ := http.NewRequest("POST", c.config.URL, bytes.NewBuffer(jsonBytes))
 	req.Header = http.Header{
+		TokenHeader:    {c.config.AuthToken},
 		"User-Agent":   {c.config.UserAgent},
-		"X-SF-TOKEN":   {c.config.AuthToken},
 		"Connection":   {"Keep-Alive"},
 		"Content-Type": {"application/x-protobuf"},
 	}
