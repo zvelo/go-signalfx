@@ -51,7 +51,7 @@ func (pdps *ProtoDataPoints) List() []*ProtoDataPoint {
 
 // Marshal a DataPointUploadMessage from the ProtoDataPoints object
 func (pdps *ProtoDataPoints) Marshal() ([]byte, error) {
-	if pdps.Len() == 0 {
+	if pdps == nil || pdps.Len() == 0 {
 		return nil, ErrMarshalNoData
 	}
 

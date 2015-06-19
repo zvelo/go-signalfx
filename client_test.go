@@ -1,6 +1,7 @@
 package signalfx
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -100,5 +101,10 @@ func TestClient(t *testing.T) {
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, "NOT OK")
 		So(err, ShouldResemble, &ErrInvalidBody{"NOT OK"})
+
+		pdps = nil
+		err = c.Submit(context.Background(), pdps)
+		So(err, ShouldNotBeNil)
+		So(err, ShouldResemble, ErrMarshal(errors.New("no data to marshal")))
 	})
 }
