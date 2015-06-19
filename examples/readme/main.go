@@ -31,13 +31,13 @@ func main() {
 	gauge.Set(9)
 	// will now be reported with integer value 9
 
-	inc, _ := reporter.NewInc("SomeIncrementer", nil)
+	inc, incDP := reporter.NewInc("SomeIncrementer", nil)
 	inc.Inc(1)
 	inc.Inc(5)
 	// will be reported on Metric "SomeIncrementer" with integer value 6
 
 	cval := int64(0)
-	reporter.NewCounter("SomeCounter", signalfx.Value(&cval), nil)
+	counter := reporter.NewCounter("SomeCounter", signalfx.Value(&cval), nil)
 	reporter.AddPreReportCallback(func() {
 		// add 1 to cval just before it is reported
 		cval++
@@ -59,4 +59,7 @@ func main() {
 	// Min and Max are reset each time bucket is reported
 
 	reporter.Report(context.Background())
+
+	reporter.RemoveDataPoint(gauge, incDP, counter)
+	reporter.RemoveBucket(bucket)
 }

@@ -46,7 +46,7 @@ Fully documented via [godoc](https://godoc.org/github.com/zvelo/go-signalfx).
 5. Incrementers are a special case, there is one for Counter Metric Types, and another for Cumulative Counters. All operations on Incrementers are goroutine safe.
 
     ```go
-    inc, _ := reporter.NewInc("SomeIncrementer", nil)
+    inc, incDP := reporter.NewInc("SomeIncrementer", nil)
     inc.Inc(1)
     inc.Inc(5)
     // will be reported on Metric "SomeIncrementer" with integer value 6
@@ -59,7 +59,7 @@ Fully documented via [godoc](https://godoc.org/github.com/zvelo/go-signalfx).
 
     ```go
     cval := int64(0)
-    reporter.NewCounter("SomeCounter", signalfx.Value(&cval), nil)
+    counter := reporter.NewCounter("SomeCounter", signalfx.Value(&cval), nil)
     reporter.AddPreReportCallback(func() {
         // add 1 to cval just before it is reported
         cval++
@@ -70,7 +70,7 @@ Fully documented via [godoc](https://godoc.org/github.com/zvelo/go-signalfx).
     // "SomeCounter" will be reported with value 2 (after the PreReportCallback is executed)
     ```
 
-8. `Bucket` is also provided to help with reporting multiple aspects of a Metric simultaneously. All operations on `Bucket` are goroutine safe.
+7. `Bucket` is also provided to help with reporting multiple aspects of a Metric simultaneously. All operations on `Bucket` are goroutine safe.
 
     ```go
     bucket := reporter.NewBucket("SomeBucket", nil)
@@ -85,8 +85,15 @@ Fully documented via [godoc](https://godoc.org/github.com/zvelo/go-signalfx).
     // Min and Max are reset each time bucket is reported
     ```
 
-7. When ready to send the DataPoints to SignalFx, just `Report` them.
+8. When ready to send the DataPoints to SignalFx, just `Report` them.
 
     ```go
     reporter.Report(context.Background())
+    ```
+
+9. `Report` can be run multiple times but does not stop tracking DataPoints after it is run. If you need to stop sending a DataPoint, it must be removed manually.
+
+    ```go
+    reporter.RemoveDataPoint(gauge, incDP, counter)
+    reporter.RemoveBucket(bucket)
     ```
