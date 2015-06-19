@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -223,17 +224,18 @@ func ExampleReporter() {
 		"test_incrementer_dimension1": "incrementer1",
 	})
 
-	cval := 0
+	cval := int64(0)
 	cumulative := reporter.NewCumulative("TestCumulative", Value(&cval), sfxproto.Dimensions{
 		"test_cumulative_dimension0": "cumulative0",
 		"test_cumulative_dimension1": "cumulative1",
 	})
 
+	atomic.AddInt64(&cval, 1)
+
 	reporter.AddPreReportCallback(func() {
 		// modify these values safely within this callback
 		// modification of pointer values otherwise is not goroutine safe
 		gval = 7
-		cval = 1
 	})
 
 	// incrementers are goroutine safe
