@@ -28,13 +28,12 @@ clean:
 .acc.out: $(GO_FILES) sfxproto/signalfx.pb.go
 	@echo "mode: set" > .acc.out
 	@for pkg in $(GO_PKGS); do \
-		cmd="go test -v -coverprofile=profile.out $$pkg"; \
-		eval $$cmd; \
+		go test -v -coverprofile=profile.out $$pkg; \
 		if test $$? -ne 0; then \
 			exit 1; \
 		fi; \
 		if test -f profile.out; then \
-			cat profile.out | grep -v "mode: set" >> .acc.out; \
+			grep -v "mode: set" profile.out >> .acc.out || true; \
 		fi; \
 	done
 	@rm -f ./profile.out
