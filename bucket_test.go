@@ -63,6 +63,44 @@ func TestBucket(t *testing.T) {
 			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{})
 		})
 
+		Convey("Clone/Equal should work correctly", func() {
+			c := b.Clone()
+			So(b, ShouldResemble, c)
+			So(c.Equal(b), ShouldBeTrue)
+			So(b.Equal(c), ShouldBeTrue)
+
+			tmp := &Bucket{}
+			So(b.Equal(tmp), ShouldBeFalse)
+			So(tmp.Equal(b), ShouldBeFalse)
+
+			So(c.Equal(tmp), ShouldBeFalse)
+			So(tmp.Equal(c), ShouldBeFalse)
+
+			c.sumOfSquares = b.sumOfSquares + 1
+			So(c.Equal(b), ShouldBeFalse)
+			So(b.Equal(c), ShouldBeFalse)
+
+			c.sum = b.sum + 1
+			So(c.Equal(b), ShouldBeFalse)
+			So(b.Equal(c), ShouldBeFalse)
+
+			c.max = b.max + 1
+			So(c.Equal(b), ShouldBeFalse)
+			So(b.Equal(c), ShouldBeFalse)
+
+			c.min = b.min + 1
+			So(c.Equal(b), ShouldBeFalse)
+			So(b.Equal(c), ShouldBeFalse)
+
+			c.count = b.count + 1
+			So(c.Equal(b), ShouldBeFalse)
+			So(b.Equal(c), ShouldBeFalse)
+
+			c.dimensions = sfxproto.Dimensions{}
+			So(c.Equal(b), ShouldBeFalse)
+			So(b.Equal(c), ShouldBeFalse)
+		})
+
 		Convey("data handling should be correct", func() {
 			b.Add(1)
 			b.Add(2)

@@ -43,34 +43,40 @@ Fully documented via [godoc](https://godoc.org/github.com/zvelo/go-signalfx).
     // will now be reported with integer value 9
     ```
 
-5. Incrementers are a special case, there is one for Counter Metric Types, and another for Cumulative Counters. All operations on Incrementers are goroutine safe.
+5. Sometimes it's necessary that a DataPoint retrieve the value at the time of reporting, not when it is created. This can be done by using the `signalfx.Getter` interface.
 
-    ```go
-    inc, incDP := reporter.NewInc("SomeIncrementer", nil)
-    inc.Inc(1)
-    inc.Inc(5)
-    // will be reported on Metric "SomeIncrementer" with integer value 6
-    ```
+    f := signalfx.GetterFunc(func() (interface{}, error) {
+        return 5, nil
+    })
+    reporter.NewGauge("GetterFunc", f, nil)
+    // will be reported on Metric "SomeIncrementer" with integer value 5
 
-6. Sometimes it's necessary that a DataPoint retrieve the value at the time of reporting, not when it is created. This can be done by using the `signalfx.Getter` interface.
-   `signalfx.Value` implements this interface and can wrap any kind of `int`, `float`, `string`, `nil` or pointer to those.
+6. `signalfx.Value` also implements the Getter interface and can wrap any kind of `int`, `float`, `string`, `nil` or pointer to those.
    It's most useful with pointers though as the value of the pointer at the time of the report is what is sent.
-   It is important to note that **changing the value of a pointer should only be done (a) atomically or (b) in a `PreReportCallback`**.
+   It is important to note that **changing the value of a pointer should only be done in a `PreReportCallback`**.
 
     ```go
-    cval := int64(0)
+    cval := 5
     counter := reporter.NewCounter("SomeCounter", signalfx.Value(&cval), nil)
     reporter.AddPreReportCallback(func() {
         // add 1 to cval just before it is reported
         cval++
     })
-
-    // safely set the value to 1
-    atomic.AddInt64(&cval, 1)
-    // "SomeCounter" will be reported with value 2 (after the PreReportCallback is executed)
+    // "SomeCounter" will be reported with value 6
     ```
 
-7. `Bucket` is also provided to help with reporting multiple aspects of a Metric simultaneously. All operations on `Bucket` are goroutine safe.
+7. `Int32`, `Int64`, `Uint32` and `Uint64` are also provided to wrap values as Getters in a goroutine safe way. Methods exist to create each of them as `Counter` and `CumulativeCounter`.
+
+    ```go
+    i, iDP := reporter.NewInt64("SomeInt64", nil)
+    i.Set(7)
+    atomic.AddInt64((*int64)(i), 2)
+    i.Inc(1)
+    i.Inc(5)
+    // will be reported on Metric "SomeInt64" with integer value 15
+    ```
+
+8. `Bucket` is also provided to help with reporting multiple aspects of a Metric simultaneously. All operations on `Bucket` are goroutine safe.
 
     ```go
     bucket := reporter.NewBucket("SomeBucket", nil)
@@ -85,15 +91,15 @@ Fully documented via [godoc](https://godoc.org/github.com/zvelo/go-signalfx).
     // Min and Max are reset each time bucket is reported
     ```
 
-8. When ready to send the DataPoints to SignalFx, just `Report` them.
+9. When ready to send the DataPoints to SignalFx, just `Report` them.
 
     ```go
     reporter.Report(context.Background())
     ```
 
-9. `Report` can be run multiple times but does not stop tracking DataPoints after it is run. If you need to stop sending a DataPoint, it must be removed manually.
+10. `Report` can be run multiple times but does not stop tracking DataPoints after it is run. If you need to stop sending a DataPoint, it must be removed manually.
 
     ```go
-    reporter.RemoveDataPoint(gauge, incDP, counter)
+    reporter.RemoveDataPoint(gauge, iDP, counter)
     reporter.RemoveBucket(bucket)
     ```

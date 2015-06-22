@@ -31,21 +31,26 @@ func main() {
 	gauge.Set(9)
 	// will now be reported with integer value 9
 
-	inc, incDP := reporter.NewInc("SomeIncrementer", nil)
-	inc.Inc(1)
-	inc.Inc(5)
-	// will be reported on Metric "SomeIncrementer" with integer value 6
+	f := signalfx.GetterFunc(func() (interface{}, error) {
+		return 5, nil
+	})
+	reporter.NewGauge("GetterFunc", f, nil)
+	// will be reported on Metric "SomeIncrementer" with integer value 5
 
-	cval := int64(0)
+	cval := 5
 	counter := reporter.NewCounter("SomeCounter", signalfx.Value(&cval), nil)
 	reporter.AddPreReportCallback(func() {
 		// add 1 to cval just before it is reported
 		cval++
 	})
+	// "SomeCounter" will be reported with value 6
 
-	// safely set the value to 1
-	atomic.AddInt64(&cval, 1)
-	// "SomeCounter" will be reported with value 2 (after the PreReportCallback is executed)
+	i, iDP := reporter.NewInt64("SomeInt64", nil)
+	i.Set(7)
+	atomic.AddInt64((*int64)(i), 2)
+	i.Inc(1)
+	i.Inc(5)
+	// will be reported on Metric "SomeInt64" with integer value 15
 
 	bucket := reporter.NewBucket("SomeBucket", nil)
 	bucket.Add(3)
@@ -60,6 +65,6 @@ func main() {
 
 	reporter.Report(context.Background())
 
-	reporter.RemoveDataPoint(gauge, incDP, counter)
+	reporter.RemoveDataPoint(gauge, iDP, counter)
 	reporter.RemoveBucket(bucket)
 }

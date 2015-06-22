@@ -90,29 +90,109 @@ func (r *Reporter) NewCounter(metric string, val interface{}, dims sfxproto.Dime
 	return dp
 }
 
-// NewInc creates a new DataPoint object with type COUNTER whose value is bound
-// to an incrementer. All operations on the Inc object are goroutine safe.
-func (r *Reporter) NewInc(metric string, dims sfxproto.Dimensions) (*Inc, *DataPoint) {
-	inc := NewInc(0)
-	dp, _ := NewCounter(metric, inc, r.defaultDimensions.Append(dims))
+// NewInt32 creates a new DataPoint object with type COUNTER whose value is
+// bound to an Int32. All methods on Int32 are goroutine safe and it may also be
+// modified in atomic operations as an int32.
+func (r *Reporter) NewInt32(metric string, dims sfxproto.Dimensions) (*Int32, *DataPoint) {
+	ret := Int32(0)
+	dp, _ := NewCounter(metric, &ret, r.defaultDimensions.Append(dims))
 	if dp == nil {
 		return nil, nil
 	}
 	r.datapoints.Add(dp)
-	return inc, dp
+	return &ret, dp
 }
 
-// NewCumulativeInc creates a new DataPoint object with type CUMULATIVE_COUNTER
-// whose value is bound to an incrementer. All operations on the Inc object are
-// goroutine safe.
-func (r *Reporter) NewCumulativeInc(metric string, dims sfxproto.Dimensions) (*Inc, *DataPoint) {
-	inc := NewInc(0)
-	dp, _ := NewCumulative(metric, inc, r.defaultDimensions.Append(dims))
+// NewCumulativeInt32 creates a new DataPoint object with type
+// CUMULATIVE_COUNTER whose value is bound to an Int32. All methods on Int32 are
+// goroutine safe and it may also be modified in atomic operations as an int32.
+func (r *Reporter) NewCumulativeInt32(metric string, dims sfxproto.Dimensions) (*Int32, *DataPoint) {
+	ret := Int32(0)
+	dp, _ := NewCumulative(metric, &ret, r.defaultDimensions.Append(dims))
 	if dp == nil {
 		return nil, nil
 	}
 	r.datapoints.Add(dp)
-	return inc, dp
+	return &ret, dp
+}
+
+// NewInt64 creates a new DataPoint object with type COUNTER whose value is
+// bound to an Int64. All methods on Int64 are goroutine safe and it may also be
+// modified in atomic operations as an int64.
+func (r *Reporter) NewInt64(metric string, dims sfxproto.Dimensions) (*Int64, *DataPoint) {
+	ret := Int64(0)
+	dp, _ := NewCounter(metric, &ret, r.defaultDimensions.Append(dims))
+	if dp == nil {
+		return nil, nil
+	}
+	r.datapoints.Add(dp)
+	return &ret, dp
+}
+
+// NewCumulativeInt64 creates a new DataPoint object with type
+// CUMULATIVE_COUNTER whose value is bound to an Int64. All methods on Int64 are
+// goroutine safe and it may also be modified in atomic operations as an int64.
+func (r *Reporter) NewCumulativeInt64(metric string, dims sfxproto.Dimensions) (*Int64, *DataPoint) {
+	ret := Int64(0)
+	dp, _ := NewCumulative(metric, &ret, r.defaultDimensions.Append(dims))
+	if dp == nil {
+		return nil, nil
+	}
+	r.datapoints.Add(dp)
+	return &ret, dp
+}
+
+// NewUint32 creates a new DataPoint object with type COUNTER whose value is
+// bound to an Uint32. All methods on Uint32 are goroutine safe and it may also
+// be modified in atomic operations as an uint32.
+func (r *Reporter) NewUint32(metric string, dims sfxproto.Dimensions) (*Uint32, *DataPoint) {
+	ret := Uint32(0)
+	dp, _ := NewCounter(metric, &ret, r.defaultDimensions.Append(dims))
+	if dp == nil {
+		return nil, nil
+	}
+	r.datapoints.Add(dp)
+	return &ret, dp
+}
+
+// NewCumulativeUint32 creates a new DataPoint object with type
+// CUMULATIVE_COUNTER whose value is bound to an Uint32. All methods on Uint32
+// are goroutine safe and it may also be modified in atomic operations as an
+// uint32.
+func (r *Reporter) NewCumulativeUint32(metric string, dims sfxproto.Dimensions) (*Uint32, *DataPoint) {
+	ret := Uint32(0)
+	dp, _ := NewCumulative(metric, &ret, r.defaultDimensions.Append(dims))
+	if dp == nil {
+		return nil, nil
+	}
+	r.datapoints.Add(dp)
+	return &ret, dp
+}
+
+// NewUint64 creates a new DataPoint object with type COUNTER whose value is
+// bound to an Uint64. All methods on Uint64 are goroutine safe and it may also be
+// modified in atomic operations as an uint64.
+func (r *Reporter) NewUint64(metric string, dims sfxproto.Dimensions) (*Uint64, *DataPoint) {
+	ret := Uint64(0)
+	dp, _ := NewCounter(metric, &ret, r.defaultDimensions.Append(dims))
+	if dp == nil {
+		return nil, nil
+	}
+	r.datapoints.Add(dp)
+	return &ret, dp
+}
+
+// NewCumulativeUint64 creates a new DataPoint object with type
+// CUMULATIVE_COUNTER whose value is bound to an Uint64. All methods on Uint64 are
+// goroutine safe and it may also be modified in atomic operations as an uint64.
+func (r *Reporter) NewCumulativeUint64(metric string, dims sfxproto.Dimensions) (*Uint64, *DataPoint) {
+	ret := Uint64(0)
+	dp, _ := NewCumulative(metric, &ret, r.defaultDimensions.Append(dims))
+	if dp == nil {
+		return nil, nil
+	}
+	r.datapoints.Add(dp)
+	return &ret, dp
 }
 
 // AddDataPoint provides a way to manually add DataPoint(s) to be tracked by the

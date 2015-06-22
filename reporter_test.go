@@ -1,6 +1,7 @@
 package signalfx
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -182,57 +183,287 @@ func TestReporter(t *testing.T) {
 			So(dps, ShouldBeNil)
 		})
 
-		Convey("incrementers should work", func() {
-			inc, dp := reporter.NewInc("Incrementer", nil)
+		Convey("report should fail when Getters return an error", func() {
+			ccopy := config.Clone()
+			ccopy.URL = "z" + ts.URL
+			tmpR := NewReporter(ccopy, nil)
+
+			// when adding the getter, its value is taken, and that has to not
+			// return an error. then after that first Get, it should return an
+			// error for this test to work
+			i := 0
+			f := GetterFunc(func() (interface{}, error) {
+				switch i {
+				case 0:
+					i++
+					return 0, nil
+				default:
+					return nil, errors.New("bad getter")
+				}
+			})
+
+			dp := tmpR.NewGauge("BadGauge", f, nil)
 			So(dp, ShouldNotBeNil)
-			So(inc, ShouldNotBeNil)
-			So(reporter.datapoints.Len(), ShouldEqual, 1)
+			dps, err := tmpR.Report(context.Background())
+			So(dps, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "bad getter")
+		})
+
+		Convey("Getters should work", func() {
+			i32, dpi32 := reporter.NewInt32("Int32", nil)
+			ci32, dpci32 := reporter.NewCumulativeInt32("CumulativeInt32", nil)
+			i64, dpi64 := reporter.NewInt64("Int64", nil)
+			ci64, dpci64 := reporter.NewCumulativeInt64("CumulativeInt64", nil)
+			ui32, dpui32 := reporter.NewUint32("Uint32", nil)
+			cui32, dpcui32 := reporter.NewCumulativeUint32("CumulativeUint32", nil)
+			ui64, dpui64 := reporter.NewUint64("Uint64", nil)
+			cui64, dpcui64 := reporter.NewCumulativeUint64("CumulativeUint64", nil)
+
+			So(reporter.datapoints.Len(), ShouldEqual, 8)
 			So(len(reporter.buckets), ShouldEqual, 0)
 
-			So(inc.Value(), ShouldEqual, 0)
-			v, err := inc.Get()
-			So(err, ShouldBeNil)
-			So(v, ShouldEqual, 0)
-			So(inc.Value(), ShouldEqual, dp.IntValue())
+			Convey("Metric names should be required", func() {
+				i32, dpi32 := reporter.NewInt32("", nil)
+				So(i32, ShouldBeNil)
+				So(dpi32, ShouldBeNil)
+				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.buckets), ShouldEqual, 0)
 
-			inc.Set(5)
-			So(inc.Value(), ShouldEqual, 5)
-			v, err = inc.Get()
-			So(err, ShouldBeNil)
-			So(v, ShouldEqual, 5)
-			So(inc.Value(), ShouldEqual, dp.IntValue())
+				ci32, dpci32 := reporter.NewCumulativeInt32("", nil)
+				So(ci32, ShouldBeNil)
+				So(dpci32, ShouldBeNil)
+				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.buckets), ShouldEqual, 0)
 
-			inc.Inc(1)
-			So(inc.Value(), ShouldEqual, 6)
-			v, err = inc.Get()
-			So(err, ShouldBeNil)
-			So(v, ShouldEqual, 6)
-			So(inc.Value(), ShouldEqual, dp.IntValue())
+				i64, dpi64 := reporter.NewInt64("", nil)
+				So(i64, ShouldBeNil)
+				So(dpi64, ShouldBeNil)
+				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.buckets), ShouldEqual, 0)
 
-			inc, dp = reporter.NewCumulativeInc("CumulativeIncrementer", nil)
-			So(inc, ShouldNotBeNil)
-			So(reporter.datapoints.Len(), ShouldEqual, 2)
-			So(len(reporter.buckets), ShouldEqual, 0)
+				ci64, dpci64 := reporter.NewCumulativeInt64("", nil)
+				So(ci64, ShouldBeNil)
+				So(dpci64, ShouldBeNil)
+				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.buckets), ShouldEqual, 0)
 
-			So(inc.Value(), ShouldEqual, 0)
-			v, err = inc.Get()
-			So(err, ShouldBeNil)
-			So(v, ShouldEqual, 0)
-			So(inc.Value(), ShouldEqual, dp.IntValue())
+				ui32, dpui32 := reporter.NewUint32("", nil)
+				So(ui32, ShouldBeNil)
+				So(dpui32, ShouldBeNil)
+				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.buckets), ShouldEqual, 0)
 
-			inc.Set(5)
-			So(inc.Value(), ShouldEqual, 5)
-			v, err = inc.Get()
-			So(err, ShouldBeNil)
-			So(v, ShouldEqual, 5)
-			So(inc.Value(), ShouldEqual, dp.IntValue())
+				cui32, dpcui32 := reporter.NewCumulativeUint32("", nil)
+				So(cui32, ShouldBeNil)
+				So(dpcui32, ShouldBeNil)
+				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.buckets), ShouldEqual, 0)
 
-			inc.Inc(1)
-			So(inc.Value(), ShouldEqual, 6)
-			v, err = inc.Get()
-			So(err, ShouldBeNil)
-			So(v, ShouldEqual, 6)
-			So(inc.Value(), ShouldEqual, dp.IntValue())
+				ui64, dpui64 := reporter.NewUint64("", nil)
+				So(ui64, ShouldBeNil)
+				So(dpui64, ShouldBeNil)
+				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.buckets), ShouldEqual, 0)
+
+				cui64, dpcui64 := reporter.NewCumulativeUint64("", nil)
+				So(cui64, ShouldBeNil)
+				So(dpcui64, ShouldBeNil)
+				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.buckets), ShouldEqual, 0)
+			})
+
+			Convey("Int32", func() {
+				So(i32, ShouldNotBeNil)
+				So(dpi32, ShouldNotBeNil)
+				So(i32.Value(), ShouldEqual, 0)
+				v, err := i32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 0)
+				So(i32.Value(), ShouldEqual, dpi32.IntValue())
+
+				i32.Set(5)
+				So(i32.Value(), ShouldEqual, 5)
+				v, err = i32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				So(i32.Value(), ShouldEqual, dpi32.IntValue())
+
+				i32.Inc(1)
+				So(i32.Value(), ShouldEqual, 6)
+				v, err = i32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 6)
+				So(i32.Value(), ShouldEqual, dpi32.IntValue())
+			})
+
+			Convey("CumulativeInt32", func() {
+				So(ci32, ShouldNotBeNil)
+				So(dpci32, ShouldNotBeNil)
+				So(ci32.Value(), ShouldEqual, 0)
+				v, err := ci32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 0)
+				So(ci32.Value(), ShouldEqual, dpci32.IntValue())
+
+				ci32.Set(5)
+				So(ci32.Value(), ShouldEqual, 5)
+				v, err = ci32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				So(ci32.Value(), ShouldEqual, dpci32.IntValue())
+
+				ci32.Inc(1)
+				So(ci32.Value(), ShouldEqual, 6)
+				v, err = ci32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 6)
+				So(ci32.Value(), ShouldEqual, dpci32.IntValue())
+			})
+
+			Convey("Int64", func() {
+				So(i64, ShouldNotBeNil)
+				So(dpi64, ShouldNotBeNil)
+				So(i64.Value(), ShouldEqual, 0)
+				v, err := i64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 0)
+				So(i64.Value(), ShouldEqual, dpi64.IntValue())
+
+				i64.Set(5)
+				So(i64.Value(), ShouldEqual, 5)
+				v, err = i64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				So(i64.Value(), ShouldEqual, dpi64.IntValue())
+
+				i64.Inc(1)
+				So(i64.Value(), ShouldEqual, 6)
+				v, err = i64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 6)
+				So(i64.Value(), ShouldEqual, dpi64.IntValue())
+			})
+
+			Convey("CumulativeInt64", func() {
+				So(ci64, ShouldNotBeNil)
+				So(dpci64, ShouldNotBeNil)
+				So(ci64.Value(), ShouldEqual, 0)
+				v, err := ci64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 0)
+				So(ci64.Value(), ShouldEqual, dpci64.IntValue())
+
+				ci64.Set(5)
+				So(ci64.Value(), ShouldEqual, 5)
+				v, err = ci64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				So(ci64.Value(), ShouldEqual, dpci64.IntValue())
+
+				ci64.Inc(1)
+				So(ci64.Value(), ShouldEqual, 6)
+				v, err = ci64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 6)
+				So(ci64.Value(), ShouldEqual, dpci64.IntValue())
+			})
+
+			Convey("Uint32", func() {
+				So(ui32, ShouldNotBeNil)
+				So(dpui32, ShouldNotBeNil)
+				So(ui32.Value(), ShouldEqual, 0)
+				v, err := ui32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 0)
+				So(ui32.Value(), ShouldEqual, dpui32.IntValue())
+
+				ui32.Set(5)
+				So(ui32.Value(), ShouldEqual, 5)
+				v, err = ui32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				So(ui32.Value(), ShouldEqual, dpui32.IntValue())
+
+				ui32.Inc(1)
+				So(ui32.Value(), ShouldEqual, 6)
+				v, err = ui32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 6)
+				So(ui32.Value(), ShouldEqual, dpui32.IntValue())
+			})
+
+			Convey("CumulativeUint32", func() {
+				So(cui32, ShouldNotBeNil)
+				So(dpcui32, ShouldNotBeNil)
+				So(cui32.Value(), ShouldEqual, 0)
+				v, err := cui32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 0)
+				So(cui32.Value(), ShouldEqual, dpcui32.IntValue())
+
+				cui32.Set(5)
+				So(cui32.Value(), ShouldEqual, 5)
+				v, err = cui32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				So(cui32.Value(), ShouldEqual, dpcui32.IntValue())
+
+				cui32.Inc(1)
+				So(cui32.Value(), ShouldEqual, 6)
+				v, err = cui32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 6)
+				So(cui32.Value(), ShouldEqual, dpcui32.IntValue())
+			})
+
+			Convey("Uint64", func() {
+				So(ui64, ShouldNotBeNil)
+				So(dpui64, ShouldNotBeNil)
+				So(ui64.Value(), ShouldEqual, 0)
+				v, err := ui64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 0)
+				So(ui64.Value(), ShouldEqual, dpui64.IntValue())
+
+				ui64.Set(5)
+				So(ui64.Value(), ShouldEqual, 5)
+				v, err = ui64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				So(ui64.Value(), ShouldEqual, dpui64.IntValue())
+
+				ui64.Inc(1)
+				So(ui64.Value(), ShouldEqual, 6)
+				v, err = ui64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 6)
+				So(ui64.Value(), ShouldEqual, dpui64.IntValue())
+			})
+
+			Convey("CumulativeUint64", func() {
+				So(cui64, ShouldNotBeNil)
+				So(dpcui64, ShouldNotBeNil)
+				So(cui64.Value(), ShouldEqual, 0)
+				v, err := cui64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 0)
+				So(cui64.Value(), ShouldEqual, dpcui64.IntValue())
+
+				cui64.Set(5)
+				So(cui64.Value(), ShouldEqual, 5)
+				v, err = cui64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				So(cui64.Value(), ShouldEqual, dpcui64.IntValue())
+
+				cui64.Inc(1)
+				So(cui64.Value(), ShouldEqual, 6)
+				v, err = cui64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 6)
+				So(cui64.Value(), ShouldEqual, dpcui64.IntValue())
+			})
 		})
 	})
 }
@@ -251,7 +482,7 @@ func ExampleReporter() {
 		"test_gauge_dimension1": "gauge1",
 	})
 
-	inc, _ := reporter.NewInc("TestIncrementer", sfxproto.Dimensions{
+	i, _ := reporter.NewInt64("TestInt64", sfxproto.Dimensions{
 		"test_incrementer_dimension0": "incrementer0",
 		"test_incrementer_dimension1": "incrementer1",
 	})
@@ -271,13 +502,13 @@ func ExampleReporter() {
 	})
 
 	// incrementers are goroutine safe
-	inc.Inc(1)
-	inc.Inc(5)
+	i.Inc(1)
+	i.Inc(5)
 
 	dps, err := reporter.Report(context.Background())
 
 	fmt.Printf("Gauge: %d\n", gauge.IntValue())
-	fmt.Printf("Incrementer: %d\n", inc.Value())
+	fmt.Printf("Incrementer: %d\n", i.Value())
 	fmt.Printf("Cumulative: %d\n", cumulative.IntValue())
 	fmt.Printf("Error: %v\n", err)
 	fmt.Printf("DataPoints: %d\n", dps.Len())

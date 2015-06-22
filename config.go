@@ -42,8 +42,7 @@ type Config struct {
 // Clone makes a deep copy of a Config
 func (c *Config) Clone() *Config {
 	// there are no fields, presently, that require any spacial handling
-	var ret Config
-	ret = *c
+	ret := *c
 	return &ret
 }
 

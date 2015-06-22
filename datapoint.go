@@ -13,6 +13,10 @@ var (
 	// ErrIllegalType is returned when trying to set the Datum value using an
 	// unsupported type
 	ErrIllegalType = fmt.Errorf("illegal value type")
+
+	// ErrNoMetricName is returned when trying to create a DataPoint without a
+	// Metric name
+	ErrNoMetricName = fmt.Errorf("no metric name")
 )
 
 // A DataPoint is a light wrapper around sfxproto.ProtoDataPoint. It adds the
@@ -28,6 +32,10 @@ type DataPoint struct {
 // type, a string, a pointer to any of those types or a Getter that returns any
 // of those types.
 func NewDataPoint(metricType sfxproto.MetricType, metric string, val interface{}, dims sfxproto.Dimensions) (*DataPoint, error) {
+	if len(metric) == 0 {
+		return nil, ErrNoMetricName
+	}
+
 	ret := &DataPoint{
 		pdp: &sfxproto.ProtoDataPoint{
 			Metric:     proto.String(metric),

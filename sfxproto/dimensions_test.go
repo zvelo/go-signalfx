@@ -23,6 +23,7 @@ func TestDimensions(t *testing.T) {
 			"two": "2",
 		}
 		So(len(dims), ShouldEqual, 3)
+		So(dims.Equal(dims), ShouldBeTrue)
 
 		dslice := []*Dimension{
 			{Key: proto.String("one"), Value: proto.String("1")},
@@ -34,19 +35,29 @@ func TestDimensions(t *testing.T) {
 		})
 
 		Convey("Append should work", func() {
-			dims2 := Dimensions{"three": "3"}
-			So(len(dims2), ShouldEqual, 1)
-
-			tmp := dims.Append(dims2)
 			So(len(dims), ShouldEqual, 3)
-			So(len(tmp), ShouldEqual, 4)
 
-			So(tmp, ShouldResemble, Dimensions{
+			tst := Dimensions{
 				"one":   "1",
 				"":      "",
 				"two":   "2",
 				"three": "3",
-			})
+			}
+
+			So(dims.Equal(tst), ShouldBeFalse)
+			So(tst.Equal(dims), ShouldBeFalse)
+			So(tst.Equal(tst), ShouldBeTrue)
+
+			dims2 := Dimensions{"three": "3"}
+			So(len(dims2), ShouldEqual, 1)
+			So(dims2.Equal(tst), ShouldBeFalse)
+			So(tst.Equal(dims2), ShouldBeFalse)
+
+			tmp := dims.Append(dims2)
+			So(len(tmp), ShouldEqual, 4)
+			So(tmp, ShouldResemble, tst)
+			So(tmp.Equal(tst), ShouldBeTrue)
+			So(tst.Equal(tmp), ShouldBeTrue)
 		})
 
 		Convey("massage key should work", func() {
@@ -54,10 +65,31 @@ func TestDimensions(t *testing.T) {
 			So(massageKey(".hello:bob1_&"), ShouldEqual, "_hello_bob1__")
 		})
 
-		Convey("Clone should work", func() {
+		Convey("Clone/Equal should work", func() {
 			dims2 := dims.Clone()
 			So(dims, ShouldNotEqual, dims2)
 			So(dims, ShouldResemble, dims2)
+			So(dims.Equal(dims2), ShouldBeTrue)
+			So(dims2.Equal(dims), ShouldBeTrue)
+
+			dims2 = dims.Clone()
+			dims2["one"] = "one"
+			So(dims.Equal(dims2), ShouldBeFalse)
+			So(dims2.Equal(dims), ShouldBeFalse)
+
+			dims2 = Dimensions{}
+			So(dims.Equal(dims2), ShouldBeFalse)
+			So(dims2.Equal(dims), ShouldBeFalse)
+
+			dims2["a"] = "1"
+			dims2["b"] = "2"
+			dims2["c"] = "3"
+
+			So(dims.Equal(dims2), ShouldBeFalse)
+			So(dims2.Equal(dims), ShouldBeFalse)
+
+			dims2 = dims.Clone()
+			dims2["one"] = "one"
 		})
 
 		Convey("NewDimensions should work", func() {

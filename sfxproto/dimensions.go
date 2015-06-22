@@ -7,7 +7,8 @@ import (
 	"github.com/gogo/protobuf/proto"
 )
 
-// Dimensions is map that can be converted into []*Dimension
+// Dimensions is map that can be converted into []*Dimension. By itself it is
+// not goroutine safe.
 type Dimensions map[string]string
 
 // List returns a slice of all tracked Dimension objects
@@ -28,13 +29,10 @@ func (ds Dimensions) List() []*Dimension {
 	return ret
 }
 
-// Append returns a new Dimensions object with the values of both objects merged
+// Append returns a new Dimensions object with the values of both objects
+// merged. Keys in val will overwrite equivalent keys in ds.
 func (ds Dimensions) Append(val Dimensions) Dimensions {
-	ret := make(Dimensions, len(ds)+len(val))
-
-	for key, val := range ds {
-		ret[key] = val
-	}
+	ret := ds.Clone()
 
 	for key, val := range val {
 		ret[key] = val
@@ -78,4 +76,24 @@ func NewDimensions(dims []*Dimension) Dimensions {
 	}
 
 	return ret
+}
+
+// Equal returns whether or not two sets of dimensions match exactly
+func (ds Dimensions) Equal(r Dimensions) bool {
+	if len(ds) != len(r) {
+		return false
+	}
+
+	for key, value := range ds {
+		got, ok := r[key]
+		if !ok {
+			return false
+		}
+
+		if got != value {
+			return false
+		}
+	}
+
+	return true
 }
