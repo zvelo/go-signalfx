@@ -506,17 +506,18 @@ func ExampleReporter() {
 	i.Inc(5)
 
 	dps, err := reporter.Report(context.Background())
-
-	fmt.Printf("Gauge: %d\n", gauge.IntValue())
-	fmt.Printf("Incrementer: %d\n", i.Value())
-	fmt.Printf("Cumulative: %d\n", cumulative.IntValue())
-	fmt.Printf("Error: %v\n", err)
-	fmt.Printf("DataPoints: %d\n", dps.Len())
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+	} else {
+		fmt.Printf("Gauge: %d\n", gauge.IntValue())
+		fmt.Printf("Incrementer: %d\n", i.Value())
+		fmt.Printf("Cumulative: %d\n", cumulative.IntValue())
+		fmt.Printf("DataPoints: %d\n", dps.Len())
+	}
 
 	// Output:
 	// Gauge: 7
 	// Incrementer: 6
 	// Cumulative: 1
-	// Error: <nil>
 	// DataPoints: 3
 }
