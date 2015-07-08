@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+// A BackgroundJob represents a goroutine which will periodically
+// call a function every time interval.
 type BackgroundJob chan backgroundCommand
 
 type backgroundCommand int
@@ -22,6 +24,8 @@ var (
 	ErrBackgroundJobNotStarted = errors.New("Background job not started")
 )
 
+// Background spawns a background goroutine which will call the
+// passed-in function every time interval.
 func Background(interval time.Duration, doFunc func()) BackgroundJob {
 	controlChan := make(BackgroundJob)
 	go func() {
@@ -58,6 +62,8 @@ func Background(interval time.Duration, doFunc func()) BackgroundJob {
 	return controlChan
 }
 
+// Pause pauses the clock (it does not pause a running job).  It is
+// not an error to call Pause on a paused job.
 func (b BackgroundJob) Pause() error {
 	if b == nil {
 		return ErrBackgroundJobNotStarted
@@ -66,6 +72,8 @@ func (b BackgroundJob) Pause() error {
 	return nil
 }
 
+// Resume resumes a paused job.  It is not an error to call Resume on
+// a running job.
 func (b BackgroundJob) Resume() error {
 	// TODO: add better error checking, e.g. for started-but-not-paused
 	if b == nil {
@@ -86,6 +94,8 @@ func (b *BackgroundJob) Stop() error {
 	return nil
 }
 
+// Do runs the job immediately, then resumes the normal
+// wait-then-execute pattern.
 func (b BackgroundJob) Do() error {
 	if b == nil {
 		return ErrBackgroundJobNotStarted
