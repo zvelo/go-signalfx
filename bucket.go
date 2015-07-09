@@ -175,11 +175,10 @@ func (b *Bucket) SumOfSquares() int64 {
 // locked by this method, it is important that the caller ensures its state does
 // not change for the duration of the operation.
 func NewBucket(metric string, dimensions sfxproto.Dimensions) *Bucket {
-	ret := &Bucket{
+	return &Bucket{
 		metric:     metric,
 		dimensions: dimensions.Clone(),
 	}
-	return ret
 }
 
 // Add an item to the Bucket, later reporting the result in the next report
