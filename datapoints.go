@@ -107,11 +107,11 @@ func (dps *DataPoints) RemoveDataPoints(val *DataPoints) {
 	}
 }
 
-// ProtoDataPoints returns a sfxproto.ProtoDataPoints object representing the
+// ProtoDataPoints returns a sfxproto.DataPoints object representing the
 // underlying DataPoint objects contained in the DataPoints object. If a
 // DataPoint has a Getter, the value will be updated before returning.
-func (dps *DataPoints) ProtoDataPoints() (*sfxproto.ProtoDataPoints, error) {
-	ret := sfxproto.NewProtoDataPoints(dps.Len())
+func (dps *DataPoints) ProtoDataPoints() (*sfxproto.DataPoints, error) {
+	ret := sfxproto.NewDataPoints(dps.Len())
 
 	dps.lock()
 	defer dps.unlock()

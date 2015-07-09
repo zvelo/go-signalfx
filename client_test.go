@@ -26,7 +26,7 @@ var (
 )
 
 func TestClient(t *testing.T) {
-	pdps := sfxproto.NewProtoDataPoints(1).Add(&sfxproto.ProtoDataPoint{
+	pdps := sfxproto.NewDataPoints(1).Add(&sfxproto.DataPoint{
 		Metric:     proto.String("TestClient"),
 		MetricType: sfxproto.MetricType_COUNTER.Enum(),
 		Dimensions: []*sfxproto.Dimension{{

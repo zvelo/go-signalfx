@@ -30,7 +30,7 @@ message Dimension {
   optional string value = 2;
 }
 
-message ProtoDataPoint {
+message DataPoint {
   // source, field 1, was deprecated, so start at field 2
   optional string     metric     = 2;
   optional int64      timestamp  = 3;
@@ -40,5 +40,5 @@ message ProtoDataPoint {
 }
 
 message DataPointUploadMessage {
-  repeated ProtoDataPoint datapoints = 1;
+  repeated DataPoint datapoints = 1;
 }
