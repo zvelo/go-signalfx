@@ -175,20 +175,16 @@ func (b *Bucket) SumOfSquares() int64 {
 // locked by this method, it is important that the caller ensures its state does
 // not change for the duration of the operation.
 func NewBucket(metric string, dimensions sfxproto.Dimensions) *Bucket {
-	return &Bucket{
+	ret := &Bucket{
 		metric:     metric,
 		dimensions: dimensions.Clone(),
 	}
+	return ret
 }
 
 // Add an item to the Bucket, later reporting the result in the next report
 // cycle.
 func (b *Bucket) Add(val int64) {
-	// wrap all of these changes in the mutex lock since they need to occur as a
-	// transaction, not a set of atomic operations
-	b.lock()
-	defer b.unlock()
-
 	// still use atomic though, so that the atomic "getters" will never read
 	// from an inconsistent state
 	count := atomic.AddUint64(&b.count, 1)
@@ -196,17 +192,50 @@ func (b *Bucket) Add(val int64) {
 	atomic.AddInt64(&b.sumOfSquares, val*val)
 
 	if count == 1 {
-		atomic.StoreInt64(&b.min, val)
-		atomic.StoreInt64(&b.max, val)
+		if cur := b.Min(); cur == 0 {
+			if !atomic.CompareAndSwapInt64(&b.min, cur, val) {
+				b.setMin(val)
+			}
+		} else {
+			b.setMin(val)
+		}
+
+		if cur := b.Max(); cur == 0 {
+			if !atomic.CompareAndSwapInt64(&b.max, cur, val) {
+				b.setMax(val)
+			}
+		} else {
+			b.setMax(val)
+		}
+
 		return
 	}
 
-	if b.Min() > val {
-		atomic.StoreInt64(&b.min, val)
-	}
+	b.setMin(val)
+	b.setMax(val)
+}
 
-	if b.Max() < val {
-		atomic.StoreInt64(&b.max, val)
+func (b *Bucket) setMin(val int64) {
+	for {
+		if cur := b.Min(); cur > val || cur == math.MaxInt64 {
+			if atomic.CompareAndSwapInt64(&b.min, cur, val) {
+				break
+			}
+		} else {
+			break
+		}
+	}
+}
+
+func (b *Bucket) setMax(val int64) {
+	for {
+		if cur := b.Max(); cur < val || cur == math.MinInt64 {
+			if atomic.CompareAndSwapInt64(&b.max, cur, val) {
+				break
+			}
+		} else {
+			break
+		}
 	}
 }
 
