@@ -130,6 +130,7 @@ func (dps *DataPoints) ProtoDataPoints() (*sfxproto.DataPoints, error) {
 		case sfxproto.MetricType_CUMULATIVE_COUNTER:
 			if !dp.pdp.Equal(dp.previous) {
 				ret.Add(dp.pdp)
+				dp.previous = dp.pdp
 			}
 		default:
 			ret.Add(dp.pdp)

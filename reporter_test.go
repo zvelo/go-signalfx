@@ -143,6 +143,29 @@ func TestReporter(t *testing.T) {
 			So(dps.Len(), ShouldEqual, 5) // TODO: verify that 5 is correct, not just expected
 		})
 
+		Convey("a blanked counter shouldn't report", func() {
+			counter := reporter.NewCounter("foo", Value(0), nil)
+			_ = counter
+			_, err := reporter.Report(context.Background())
+			So(err, ShouldEqual, sfxproto.ErrMarshalNoData)
+		})
+
+		Convey("a cumulative counter shouldn't report the same value", func() {
+			counter := reporter.NewCumulative("foo", Value(0), nil)
+			_ = counter
+			_, err := reporter.Report(context.Background())
+			So(err, ShouldEqual, sfxproto.ErrMarshalNoData)
+			counter.Set(1)
+			_, err = reporter.Report(context.Background())
+			So(err, ShouldBeNil)
+			// since it didn't change, it shouldn't report
+			_, err = reporter.Report(context.Background())
+			So(err, ShouldEqual, sfxproto.ErrMarshalNoData)
+			counter.Set(2)
+			_, err = reporter.Report(context.Background())
+			So(err, ShouldBeNil)
+		})
+
 		Convey("report should handle a previously canceled context", func() {
 			// test report with already canceled context
 			ctx, cancelF := context.WithCancel(context.Background())
