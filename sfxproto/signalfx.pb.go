@@ -135,8 +135,8 @@ type DataPoint struct {
 	XXX_unrecognized []byte       `json:"-"`
 }
 
-func (m *DataPoint) Reset()         { *m = DataPoint{} }
-func (*DataPoint) ProtoMessage()    {}
+func (m *DataPoint) Reset()      { *m = DataPoint{} }
+func (*DataPoint) ProtoMessage() {}
 
 func (m *DataPoint) GetMetric() string {
 	if m != nil && m.Metric != nil {

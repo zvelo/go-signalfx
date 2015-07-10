@@ -26,6 +26,8 @@ type DataPoint struct {
 	pdp *sfxproto.DataPoint
 	get Getter
 	mu  sync.Mutex
+	// FIXME: this is inelegant
+	previous *sfxproto.DataPoint
 }
 
 // NewDataPoint creates a new DataPoint. val can be nil, any int type, any float
@@ -79,9 +81,23 @@ func (dp *DataPoint) Clone() *DataPoint {
 	defer dp.unlock()
 
 	return &DataPoint{
+		pdp:      dp.pdp.Clone(),
+		get:      dp.get,
+		previous: dp.previous,
+	}
+}
+
+// WithDimension returns a DataPoint with an added dimension
+func (dp *DataPoint) WithDimension(key, value string) *DataPoint {
+	dp.lock()
+	defer dp.unlock()
+
+	ret := &DataPoint{
 		pdp: dp.pdp.Clone(),
 		get: dp.get,
 	}
+	ret.pdp.Dimensions = append(ret.pdp.Dimensions, &sfxproto.Dimension{Key: &key, Value: &value})
+	return ret
 }
 
 // Time returns the timestamp of the DataPoint
@@ -230,6 +246,7 @@ func (dp *DataPoint) Set(val interface{}) error {
 	dp.lock()
 	defer dp.unlock()
 
+	dp.previous = dp.pdp.Clone()
 	dp.pdp.Value.Reset()
 	dp.get = nil
 

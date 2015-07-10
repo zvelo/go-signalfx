@@ -121,7 +121,19 @@ func (dps *DataPoints) ProtoDataPoints() (*sfxproto.DataPoints, error) {
 			return nil, err
 		}
 
-		ret.Add(dp.pdp)
+		// FIXME: this is atrocious
+		switch *dp.pdp.MetricType {
+		case sfxproto.MetricType_COUNTER:
+			if dp.pdp.Value.IntValue != nil && *dp.pdp.Value.IntValue != 0 {
+				ret.Add(dp.pdp)
+			}
+		case sfxproto.MetricType_CUMULATIVE_COUNTER:
+			if !dp.pdp.Equal(dp.previous) {
+				ret.Add(dp.pdp)
+			}
+		default:
+			ret.Add(dp.pdp)
+		}
 	}
 
 	return ret, nil

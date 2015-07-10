@@ -37,7 +37,8 @@ func TestBackgrounding(t *testing.T) {
 
 		So(tw.counter, ShouldBeZeroValue)
 		var count int
-		_ = reporter.NewCounter("count", Value(count), nil)
+		counter := reporter.NewCounter("count", Value(count), nil)
+		counter.Set(1)
 		_, err := reporter.Report(nil)
 		So(err, ShouldBeNil)
 		So(tw.counter, ShouldEqual, 1)

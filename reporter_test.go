@@ -101,13 +101,13 @@ func TestReporter(t *testing.T) {
 			cb := 0
 			addDataPointF := func(dims sfxproto.Dimensions) *DataPoints {
 				cb++
-				count0, err := NewCounter("count0", Value(0), nil)
+				count0, err := NewCounter("count0", Value(1), nil)
 				if err != nil {
 					return nil
 				}
 				So(count0, ShouldNotBeNil)
 
-				count1, err := NewCounter("count1", Value(0), nil)
+				count1, err := NewCounter("count1", Value(1), nil)
 				if err != nil {
 					return nil
 				}
@@ -136,10 +136,11 @@ func TestReporter(t *testing.T) {
 		})
 
 		Convey("reporting should work", func() {
-			reporter.NewBucket("bucket", nil)
+			bucket := reporter.NewBucket("bucket", nil)
+			bucket.Add(2)
 			dps, err := reporter.Report(context.Background())
 			So(err, ShouldBeNil)
-			So(dps.Len(), ShouldEqual, 3)
+			So(dps.Len(), ShouldEqual, 5) // TODO: verify that 5 is correct, not just expected
 		})
 
 		Convey("report should handle a previously canceled context", func() {
@@ -156,7 +157,8 @@ func TestReporter(t *testing.T) {
 		})
 
 		Convey("report should handle an 'in-flight' context cancellation", func() {
-			reporter.NewBucket("bucket", nil)
+			bucket := reporter.NewBucket("bucket", nil)
+			bucket.Add(1)
 			ctx, cancelF := context.WithCancel(context.Background())
 			go cancelF()
 			dps, err := reporter.Report(ctx)
@@ -176,7 +178,8 @@ func TestReporter(t *testing.T) {
 			ccopy := config.Clone()
 			ccopy.URL = "z" + ts.URL
 			tmpR := NewReporter(ccopy, nil)
-			tmpR.NewBucket("bucket", nil)
+			bucket := tmpR.NewBucket("bucket", nil)
+			bucket.Add(1)
 			dps, err := tmpR.Report(context.Background())
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "Post z"+ts.URL+": unsupported protocol scheme \"zhttp\"")
