@@ -229,6 +229,23 @@ func TestDataPoint(t *testing.T) {
 
 			So(c0.Equal(c2), ShouldBeTrue)
 		})
+
+		Convey("WithDimensions should properly clone & add dimensions", func() {
+			c1, err := NewCounter("foo", 1, map[string]string{"bar": "quux"})
+			So(err, ShouldBeNil)
+			c2 := c1.WithDimension("baz", "quuux")
+			dims := map[string]string(c1.Dimensions())
+			So(dims, ShouldNotContainKey, "foo")
+			So(dims, ShouldContainKey, "bar")
+			So(dims["bar"], ShouldEqual, "quux")
+			So(dims, ShouldNotContainKey, "baz")
+			dims = map[string]string(c2.Dimensions())
+			So(dims, ShouldNotContainKey, "foo")
+			So(dims, ShouldContainKey, "bar")
+			So(dims["bar"], ShouldEqual, "quux")
+			So(dims, ShouldContainKey, "baz")
+			So(dims["baz"], ShouldEqual, "quuux")
+		})
 	})
 }
 

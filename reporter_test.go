@@ -152,7 +152,6 @@ func TestReporter(t *testing.T) {
 
 		Convey("a cumulative counter shouldn't report the same value", func() {
 			counter := reporter.NewCumulative("foo", Value(0), nil)
-			_ = counter
 			_, err := reporter.Report(context.Background())
 			So(err, ShouldEqual, sfxproto.ErrMarshalNoData)
 			counter.Set(1)
