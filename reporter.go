@@ -299,17 +299,14 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		}
 		return false
 	})
-	pdps, err := ret.ProtoDataPoints()
-	if err != nil {
-		return nil, err
-	}
+	pdps := ret.ProtoDataPoints()
 
 	// append all of the one-shots
 	for _, pdp := range r.oneShots {
 		pdps.Add(pdp)
 	}
 
-	if err = r.client.Submit(ctx, pdps); err != nil {
+	if err := r.client.Submit(ctx, pdps); err != nil {
 		return nil, err
 	}
 

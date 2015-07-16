@@ -109,7 +109,7 @@ func (dps *DataPoints) RemoveDataPoints(val *DataPoints) {
 
 // ProtoDataPoints returns a sfxproto.DataPoints object representing the
 // underlying DataPoint objects contained in the DataPoints object.
-func (dps *DataPoints) ProtoDataPoints() (*sfxproto.DataPoints, error) {
+func (dps *DataPoints) ProtoDataPoints() *sfxproto.DataPoints {
 	ret := sfxproto.NewDataPoints(dps.Len())
 
 	dps.lock()
@@ -120,7 +120,7 @@ func (dps *DataPoints) ProtoDataPoints() (*sfxproto.DataPoints, error) {
 		ret.Add(dp.pdp)
 	}
 
-	return ret, nil
+	return ret
 }
 
 // Len returns the number of datapoints the DataPoints object contains
