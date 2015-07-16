@@ -48,6 +48,7 @@ func TestBackgrounding(t *testing.T) {
 				log.Printf("[ERR] background reporting: %s", err)
 			}
 		})
+		counter.Set(1)
 		time.Sleep(time.Second * 7)
 		err = rj.Stop()
 		So(err, ShouldBeNil)

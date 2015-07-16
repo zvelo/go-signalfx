@@ -271,6 +271,10 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		ret.Append(b.DataPoints(r.defaultDimensions))
 	}
 
+	var (
+		counters           []*DataPoint
+		cumulativeCounters []*DataPoint
+	)
 	ret = ret.filter(func(dp *DataPoint) bool {
 		if err := dp.update(); err != nil {
 			return false
@@ -279,11 +283,12 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		switch *dp.pdp.MetricType {
 		case sfxproto.MetricType_COUNTER:
 			if dp.pdp.Value.IntValue != nil && *dp.pdp.Value.IntValue != 0 {
+				counters = append(counters, dp)
 				return true
 			}
 		case sfxproto.MetricType_CUMULATIVE_COUNTER:
 			if !dp.pdp.Equal(dp.previous) {
-				dp.previous = dp.pdp
+				cumulativeCounters = append(cumulativeCounters, dp)
 				return true
 			}
 		default:
@@ -298,6 +303,16 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 
 	if err = r.client.Submit(ctx, pdps); err != nil {
 		return nil, err
+	}
+
+	// set submitted counters to zero
+	for _, counter := range counters {
+		// TODO: what should be done if this fails?
+		counter.Set(0)
+	}
+	// remember submitted cumulative counter values
+	for _, counter := range cumulativeCounters {
+		counter.previous = counter.pdp
 	}
 
 	return ret, nil
