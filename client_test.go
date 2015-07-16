@@ -117,6 +117,29 @@ func TestClient(t *testing.T) {
 			err = client.Submit(context.Background(), pdps)
 			So(err, ShouldNotBeNil)
 			So(err, ShouldResemble, ErrMarshal(errors.New("no data to marshal")))
+
+			ctx := context.Background()
+			ctx, cancelFunc := context.WithCancel(ctx)
+			// force a cancel on a non-cancellable request
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				cancelFunc()
+				w.Write([]byte(`"OK"`))
+			}))
+			defer ts.Close()
+			config := config.Clone()
+			config.URL = ts.URL
+			// doesn't really matter that this is a
+			// transportWrapper, just that
+			// transportWrapper isn't cancellable
+			tw := transportWrapper{wrapped: client.tr}
+			client.client = &http.Client{Transport: &tw}
+			client = NewClient(config)
+			pdps = sfxproto.NewDataPoints(1)
+			metric := "foobar"
+			pdps.Add(&sfxproto.DataPoint{Metric: &metric})
+			err = client.Submit(ctx, pdps)
+			So(err, ShouldNotBeNil)
+			So(err, ShouldResemble, ErrContext(errors.New("context canceled")))
 		})
 	})
 }

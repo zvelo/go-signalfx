@@ -68,7 +68,7 @@ func (c *Client) Submit(ctx context.Context, pdps *sfxproto.DataPoints) error {
 	case <-ctx.Done():
 		if tr, ok := c.tr.(*http.Transport); ok {
 			tr.CancelRequest(req)
-			<-done // wait for the request to be cancelled
+			<-done // wait for the request to be canceled
 		} else {
 			log.Printf("[ERR] tried to cancel non-cancellable transport %T", tr)
 		}
