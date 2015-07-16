@@ -108,8 +108,7 @@ func (dps *DataPoints) RemoveDataPoints(val *DataPoints) {
 }
 
 // ProtoDataPoints returns a sfxproto.DataPoints object representing the
-// underlying DataPoint objects contained in the DataPoints object. If a
-// DataPoint has a Getter, the value will be updated before returning.
+// underlying DataPoint objects contained in the DataPoints object.
 func (dps *DataPoints) ProtoDataPoints() (*sfxproto.DataPoints, error) {
 	ret := sfxproto.NewDataPoints(dps.Len())
 
@@ -117,24 +116,8 @@ func (dps *DataPoints) ProtoDataPoints() (*sfxproto.DataPoints, error) {
 	defer dps.unlock()
 
 	for dp := range dps.datapoints {
-		if err := dp.update(); err != nil {
-			return nil, err
-		}
 
-		// FIXME: this is atrocious
-		switch *dp.pdp.MetricType {
-		case sfxproto.MetricType_COUNTER:
-			if dp.pdp.Value.IntValue != nil && *dp.pdp.Value.IntValue != 0 {
-				ret.Add(dp.pdp)
-			}
-		case sfxproto.MetricType_CUMULATIVE_COUNTER:
-			if !dp.pdp.Equal(dp.previous) {
-				ret.Add(dp.pdp)
-				dp.previous = dp.pdp
-			}
-		default:
-			ret.Add(dp.pdp)
-		}
+		ret.Add(dp.pdp)
 	}
 
 	return ret, nil
@@ -146,4 +129,23 @@ func (dps *DataPoints) Len() int {
 	defer dps.unlock()
 
 	return len(dps.datapoints)
+}
+
+// filter returns a new DataPoints structure consisting of only those
+// points where filterFunc is true
+func (dps *DataPoints) filter(filterFunc func(*DataPoint) bool) *DataPoints {
+	ret := &DataPoints{
+		datapoints: make(map[*DataPoint]interface{}, dps.Len()),
+	}
+
+	dps.lock()
+	defer dps.unlock()
+
+	for dp := range dps.datapoints {
+		if filterFunc(dp) {
+			ret.datapoints[dp] = nil
+		}
+	}
+
+	return ret
 }

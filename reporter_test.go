@@ -208,7 +208,7 @@ func TestReporter(t *testing.T) {
 			So(dps, ShouldBeNil)
 		})
 
-		Convey("report should fail when Getters return an error", func() {
+		Convey("report does not include broken Getters", func() {
 			ccopy := config.Clone()
 			ccopy.URL = "z" + ts.URL
 			tmpR := NewReporter(ccopy, nil)
@@ -232,7 +232,7 @@ func TestReporter(t *testing.T) {
 			dps, err := tmpR.Report(context.Background())
 			So(dps, ShouldBeNil)
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "bad getter")
+			So(err.Error(), ShouldEqual, "no data to marshal")
 		})
 
 		Convey("Getters should work", func() {

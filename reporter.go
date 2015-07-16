@@ -271,6 +271,26 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		ret.Append(b.DataPoints(r.defaultDimensions))
 	}
 
+	ret = ret.filter(func(dp *DataPoint) bool {
+		if err := dp.update(); err != nil {
+			return false
+		}
+
+		switch *dp.pdp.MetricType {
+		case sfxproto.MetricType_COUNTER:
+			if dp.pdp.Value.IntValue != nil && *dp.pdp.Value.IntValue != 0 {
+				return true
+			}
+		case sfxproto.MetricType_CUMULATIVE_COUNTER:
+			if !dp.pdp.Equal(dp.previous) {
+				dp.previous = dp.pdp
+				return true
+			}
+		default:
+			return true
+		}
+		return false
+	})
 	pdps, err := ret.ProtoDataPoints()
 	if err != nil {
 		return nil, err
