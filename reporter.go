@@ -1,7 +1,6 @@
 package signalfx
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -344,6 +343,5 @@ func (r *Reporter) Inc(metric string, dimensions map[string]string, delta int64)
 		Value:      &sfxproto.Datum{IntValue: &delta},
 	}
 	r.oneShots = append(r.oneShots, dp)
-	fmt.Println("oneShots", len(r.oneShots))
 	return nil
 }
