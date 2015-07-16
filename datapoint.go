@@ -87,19 +87,6 @@ func (dp *DataPoint) Clone() *DataPoint {
 	}
 }
 
-// WithDimension returns a DataPoint with an added dimension
-func (dp *DataPoint) WithDimension(key, value string) *DataPoint {
-	dp.lock()
-	defer dp.unlock()
-
-	ret := &DataPoint{
-		pdp: dp.pdp.Clone(),
-		get: dp.get,
-	}
-	ret.pdp.Dimensions = append(ret.pdp.Dimensions, &sfxproto.Dimension{Key: &key, Value: &value})
-	return ret
-}
-
 // Time returns the timestamp of the DataPoint
 func (dp *DataPoint) Time() time.Time {
 	dp.lock()
