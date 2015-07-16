@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strconv"
 	"sync/atomic"
 	"testing"
 
@@ -206,6 +208,36 @@ func TestReporter(t *testing.T) {
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "Post z"+ts.URL+": unsupported protocol scheme \"zhttp\"")
 			So(dps, ShouldBeNil)
+		})
+
+		Convey("Inc should handle cheap one-shot counter increments", func() {
+			config := config.Clone()
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(`"OK"`))
+			}))
+			defer ts.Close()
+			config.URL = ts.URL
+			r := NewReporter(config, nil)
+
+			// FIXME: it _really_ should be easier to
+			// override a reporter's client…
+			tw := transportWrapper{wrapped: r.client.tr}
+			r.client.tr = &tw
+			r.client.client = &http.Client{Transport: &tw}
+			So(tw.counter, ShouldBeZeroValue)
+
+			hostname, err := os.Hostname()
+			if err != nil {
+				hostname = fmt.Sprintf("zvelo-testing-host-%d", os.Getpid())
+			}
+			r.Inc("test-metric", map[string]string{
+				"client": "Wilkinson et Cie",
+				"host":   hostname,
+				"pid":    strconv.Itoa(os.Getpid()),
+			}, 1)
+			_, err = r.Report(context.Background())
+			So(err, ShouldBeNil)
+			So(tw.counter, ShouldEqual, 1)
 		})
 
 		Convey("report does not include broken Getters", func() {

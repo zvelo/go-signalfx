@@ -1,7 +1,9 @@
 package signalfx
 
 import (
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
@@ -21,6 +23,7 @@ type Reporter struct {
 	preReportCallbacks []func()
 	datapointCallbacks []DataPointCallback
 	mu                 sync.Mutex
+	oneShots           []*sfxproto.DataPoint
 }
 
 // NewReporter returns a new Reporter object. Any dimensions supplied will be
@@ -301,6 +304,11 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		return nil, err
 	}
 
+	// append all of the one-shots
+	for _, pdp := range r.oneShots {
+		pdps.Add(pdp)
+	}
+
 	if err = r.client.Submit(ctx, pdps); err != nil {
 		return nil, err
 	}
@@ -315,5 +323,30 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		counter.previous = counter.pdp
 	}
 
+	// and clear the one-shots
+	r.oneShots = nil
+
 	return ret, nil
+}
+
+func (r *Reporter) Inc(metric string, dimensions map[string]string, delta int64) error {
+	r.lock()
+	defer r.unlock()
+
+	var protoDims []*sfxproto.Dimension
+	for k, v := range dimensions {
+		protoDims = append(protoDims, &sfxproto.Dimension{Key: &k, Value: &v})
+	}
+	timestamp := time.Now().Unix()
+	metricType := sfxproto.MetricType_COUNTER
+	dp := &sfxproto.DataPoint{
+		Metric:     &metric,
+		Timestamp:  &timestamp,
+		MetricType: &metricType,
+		Dimensions: protoDims,
+		Value:      &sfxproto.Datum{IntValue: &delta},
+	}
+	r.oneShots = append(r.oneShots, dp)
+	fmt.Println("oneShots", len(r.oneShots))
+	return nil
 }

@@ -69,7 +69,7 @@ func (tw *transportWrapper) RoundTrip(req *http.Request) (*http.Response, error)
 }
 
 func TestBackgroundJob(t *testing.T) {
-	Convey("Background jobs shoudl work", t, func() {
+	Convey("Background jobs should work", t, func() {
 
 		var x int
 		job := Background(time.Second*2, func() {
