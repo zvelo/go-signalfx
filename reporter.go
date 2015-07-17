@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/coreos/fleet/log"
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
 )
@@ -344,4 +345,30 @@ func (r *Reporter) Inc(metric string, dimensions map[string]string, delta int64)
 	}
 	r.oneShots = append(r.oneShots, dp)
 	return nil
+}
+
+// RunInBackground starts a goroutine which calls Reporter.Report on
+// the specified interval.  It returns a function which may be used to
+// cancel the backgrounding.
+func (r *Reporter) RunInBackground(interval time.Duration) (cancel func()) {
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(interval)
+		for {
+			select {
+			case <-ticker.C:
+				dps, err := r.Report(context.Background())
+				if err == nil {
+					log.Error(err)
+				} else if dps != nil {
+					log.Infof("reported %d datapoints", dps.Len())
+				}
+			case <-done:
+				return
+			}
+		}
+	}()
+	return func() {
+		done <- struct{}{}
+	}
 }

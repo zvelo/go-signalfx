@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/zvelo/go-signalfx/sfxproto"
@@ -522,6 +523,52 @@ func TestReporter(t *testing.T) {
 				So(cui64.Value(), ShouldEqual, dpcui64.IntValue())
 			})
 		})
+		Convey("Testing background reporting", func() {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(`"OK"`))
+			}))
+			defer ts.Close()
+
+			config := NewConfig()
+			So(config, ShouldNotBeNil)
+
+			config.URL = ts.URL
+
+			reporter := NewReporter(config, nil)
+			So(reporter, ShouldNotBeNil)
+
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			So(len(reporter.buckets), ShouldEqual, 0)
+
+			// FIXME: it should be easier to override a client's transport…
+			tw := transportWrapper{wrapped: reporter.client.tr}
+			reporter.client.tr = &tw
+			reporter.client.client = &http.Client{Transport: &tw}
+
+			So(tw.counter, ShouldBeZeroValue)
+			var count int
+			counter := reporter.NewCounter("count", Value(count), nil)
+			err := counter.Set(1)
+			So(err, ShouldBeNil)
+			_, err = reporter.Report(nil)
+			So(err, ShouldBeNil)
+			So(tw.counter, ShouldEqual, 1)
+
+			cancelFunc := reporter.RunInBackground(time.Second * 5)
+			err = counter.Set(2)
+			So(err, ShouldBeNil)
+			time.Sleep(time.Second * 7)
+			So(err, ShouldBeNil)
+			So(tw.counter, ShouldEqual, 2)
+			cancelFunc()
+			// prove that it's cancelled
+			err = counter.Set(3)
+			So(err, ShouldBeNil)
+			time.Sleep(time.Second * 7)
+			// proves that it's paused
+			time.Sleep(time.Second * 7)
+			So(tw.counter, ShouldEqual, 2)
+		})
 	})
 }
 
@@ -577,4 +624,14 @@ func ExampleReporter() {
 	// Incrementer: 6
 	// Cumulative: 1
 	// DataPoints: 3
+}
+
+type transportWrapper struct {
+	wrapped http.RoundTripper
+	counter int
+}
+
+func (tw *transportWrapper) RoundTrip(req *http.Request) (*http.Response, error) {
+	tw.counter++
+	return tw.wrapped.RoundTrip(req)
 }
