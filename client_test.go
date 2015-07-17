@@ -131,9 +131,10 @@ func TestClient(t *testing.T) {
 			// doesn't really matter that this is a
 			// transportWrapper, just that
 			// transportWrapper isn't cancellable
+			client = NewClient(config)
 			tw := transportWrapper{wrapped: client.tr}
 			client.client = &http.Client{Transport: &tw}
-			client = NewClient(config)
+			client.tr = &tw // can the SignalFX client just interrogate the HTTP client?
 			pdps = sfxproto.NewDataPoints(1)
 			metric := "foobar"
 			pdps.Add(&sfxproto.DataPoint{Metric: &metric})
