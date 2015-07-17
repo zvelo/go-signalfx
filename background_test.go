@@ -55,6 +55,7 @@ func TestBackgrounding(t *testing.T) {
 		So(tw.counter, ShouldEqual, 2)
 		time.Sleep(time.Second * 7)
 		So(tw.counter, ShouldEqual, 2)
+		So(rj, ShouldBeNil)
 	})
 }
 
