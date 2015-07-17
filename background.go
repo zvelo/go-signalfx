@@ -52,7 +52,9 @@ func Background(interval time.Duration, doFunc func()) BackgroundJob {
 				case doCommand:
 					ticker.Stop()
 					doFunc()
-					ticker = time.NewTicker(interval)
+					if !paused {
+						ticker = time.NewTicker(interval)
+					}
 				default:
 					log.Printf("[ERR] background reporter: unknown command %d", command)
 				}

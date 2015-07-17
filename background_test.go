@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"testing"
 	"time"
 
@@ -48,14 +49,46 @@ func TestBackgrounding(t *testing.T) {
 				log.Printf("[ERR] background reporting: %s", err)
 			}
 		})
-		counter.Set(1)
+		counter.Set(2)
 		time.Sleep(time.Second * 7)
-		err = rj.Stop()
+		err = rj.Pause()
 		So(err, ShouldBeNil)
 		So(tw.counter, ShouldEqual, 2)
+		// proves that it's paused
+		counter.Set(3)
 		time.Sleep(time.Second * 7)
 		So(tw.counter, ShouldEqual, 2)
+		// this Do should execute, but not restart the ticker
+		err = rj.Do()
+		So(err, ShouldBeNil)
+		runtime.Gosched()
+		So(tw.counter, ShouldEqual, 3)
+
+		err = rj.Resume()
+		So(err, ShouldBeNil)
+		counter.Set(4)
+		time.Sleep(time.Second * 7)
+		So(tw.counter, ShouldEqual, 4)
+		counter.Set(5)
+		err = rj.Do()
+		So(err, ShouldBeNil)
+		runtime.Gosched()
+		So(tw.counter, ShouldEqual, 5)
+		err = rj.Stop()
+		So(err, ShouldBeNil)
+		So(tw.counter, ShouldEqual, 5)
+		time.Sleep(time.Second * 7)
+		// proves that it's stopped
+		So(tw.counter, ShouldEqual, 5)
 		So(rj, ShouldBeNil)
+
+		// test that messages to a stopped job fail
+		err = rj.Pause()
+		So(err, ShouldNotBeNil)
+		err = rj.Resume()
+		So(err, ShouldNotBeNil)
+		err = rj.Do()
+		So(err, ShouldNotBeNil)
 	})
 }
 
