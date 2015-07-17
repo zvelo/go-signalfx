@@ -558,14 +558,14 @@ func TestReporter(t *testing.T) {
 			err = counter.Set(2)
 			So(err, ShouldBeNil)
 			time.Sleep(time.Second * 7)
-			So(err, ShouldBeNil)
+			So(tw.counter, ShouldEqual, 2)
+			// let it run once more, with no data to send
+			time.Sleep(time.Second * 7)
 			So(tw.counter, ShouldEqual, 2)
 			cancelFunc()
 			// prove that it's cancelled
 			err = counter.Set(3)
 			So(err, ShouldBeNil)
-			time.Sleep(time.Second * 7)
-			// proves that it's paused
 			time.Sleep(time.Second * 7)
 			So(tw.counter, ShouldEqual, 2)
 		})
