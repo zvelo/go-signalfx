@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"runtime"
 	"testing"
 	"time"
 
@@ -61,7 +60,7 @@ func TestBackgrounding(t *testing.T) {
 		// this Do should execute, but not restart the ticker
 		err = rj.Do()
 		So(err, ShouldBeNil)
-		runtime.Gosched()
+		time.Sleep(time.Millisecond * 250)
 		So(tw.counter, ShouldEqual, 3)
 
 		err = rj.Resume()
@@ -72,7 +71,7 @@ func TestBackgrounding(t *testing.T) {
 		counter.Set(5)
 		err = rj.Do()
 		So(err, ShouldBeNil)
-		runtime.Gosched()
+		time.Sleep(time.Millisecond * 250)
 		So(tw.counter, ShouldEqual, 5)
 		err = rj.Stop()
 		So(err, ShouldBeNil)
