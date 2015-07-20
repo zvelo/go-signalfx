@@ -10,7 +10,7 @@ import (
 )
 
 func TestSignalFXProto(t *testing.T) {
-	pdp := &ProtoDataPoint{
+	p := &DataPoint{
 		Metric:     proto.String("metric0"),
 		MetricType: MetricType_CUMULATIVE_COUNTER.Enum(),
 		Value:      &Datum{IntValue: proto.Int64(64)},
@@ -19,7 +19,7 @@ func TestSignalFXProto(t *testing.T) {
 		},
 	}
 	now := time.Now()
-	pdp.SetTime(now)
+	p.SetTime(now)
 	now = time.Unix(0, now.UnixNano()/int64(time.Millisecond))
 
 	Convey("Testing SignalFX Proto", t, func() {
@@ -82,8 +82,8 @@ func TestSignalFXProto(t *testing.T) {
 		})
 
 		Convey("DataPointUploadMessage", func() {
-			pdp := pdp.Clone()
-			dps := []*ProtoDataPoint{pdp}
+			p := p.Clone()
+			dps := []*DataPoint{p}
 			dpum := &DataPointUploadMessage{
 				Datapoints: dps,
 			}
@@ -92,32 +92,32 @@ func TestSignalFXProto(t *testing.T) {
 			dpum.ProtoMessage() // noop
 			So(dpum.GetDatapoints(), ShouldResemble, dps)
 			dpum.Reset()
-			So(dpum.GetDatapoints(), ShouldResemble, []*ProtoDataPoint(nil))
+			So(dpum.GetDatapoints(), ShouldResemble, []*DataPoint(nil))
 			dpum = nil
 			So(dpum.GetDatapoints(), ShouldBeNil)
 		})
 
-		Convey("ProtoDataPoint", func() {
-			pdp := pdp.Clone()
-			pdp.ProtoMessage() // noop
+		Convey("DataPoint", func() {
+			p := p.Clone()
+			p.ProtoMessage() // noop
 
-			So(pdp.GetMetric(), ShouldEqual, "metric0")
-			So(pdp.GetTimestamp(), ShouldEqual, now.UnixNano())
-			So(*pdp.GetValue().IntValue, ShouldEqual, 64)
-			So(pdp.GetMetricType(), ShouldEqual, MetricType_CUMULATIVE_COUNTER)
-			So(pdp.GetDimensions()[0].GetKey(), ShouldEqual, "key0")
+			So(p.GetMetric(), ShouldEqual, "metric0")
+			So(p.GetTimestamp(), ShouldEqual, now.UnixNano())
+			So(*p.GetValue().IntValue, ShouldEqual, 64)
+			So(p.GetMetricType(), ShouldEqual, MetricType_CUMULATIVE_COUNTER)
+			So(p.GetDimensions()[0].GetKey(), ShouldEqual, "key0")
 
-			pdp.Reset()
+			p.Reset()
 
-			So(pdp.GetMetric(), ShouldEqual, "")
-			So(pdp.GetTimestamp(), ShouldEqual, 0)
-			So(pdp.GetValue(), ShouldBeNil)
-			So(pdp.GetMetricType(), ShouldEqual, MetricType_GAUGE)
-			So(pdp.GetDimensions(), ShouldBeNil)
+			So(p.GetMetric(), ShouldEqual, "")
+			So(p.GetTimestamp(), ShouldEqual, 0)
+			So(p.GetValue(), ShouldBeNil)
+			So(p.GetMetricType(), ShouldEqual, MetricType_GAUGE)
+			So(p.GetDimensions(), ShouldBeNil)
 
-			pdp = nil
-			So(pdp.GetValue(), ShouldBeNil)
-			So(pdp.GetDimensions(), ShouldBeNil)
+			p = nil
+			So(p.GetValue(), ShouldBeNil)
+			So(p.GetDimensions(), ShouldBeNil)
 		})
 	})
 }

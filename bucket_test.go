@@ -147,8 +147,11 @@ func ExampleBucket() {
 	fmt.Printf("SumOfSquares: %d\n", bucket.SumOfSquares())
 
 	dps, err := reporter.Report(context.Background())
-
-	fmt.Printf("Error: %v\nDataPoints: %d", err, dps.Len())
+	if err != nil {
+		fmt.Println("Error:", err)
+	} else {
+		fmt.Println("DataPoints:", dps.Len())
+	}
 
 	// Output:
 	// Metric: TestBucket
@@ -157,6 +160,5 @@ func ExampleBucket() {
 	// Max: 9
 	// Sum: 14
 	// SumOfSquares: 106
-	// Error: <nil>
 	// DataPoints: 5
 }

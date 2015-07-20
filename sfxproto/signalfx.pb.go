@@ -11,7 +11,7 @@ It is generated from these files:
 It has these top-level messages:
 	Datum
 	Dimension
-	ProtoDataPoint
+	DataPoint
 	DataPointUploadMessage
 */
 package sfxproto
@@ -125,7 +125,7 @@ func (m *Dimension) GetValue() string {
 	return ""
 }
 
-type ProtoDataPoint struct {
+type DataPoint struct {
 	// source, field 1, was deprecated, so start at field 2
 	Metric           *string      `protobuf:"bytes,2,opt,name=metric" json:"metric,omitempty"`
 	Timestamp        *int64       `protobuf:"varint,3,opt,name=timestamp" json:"timestamp,omitempty"`
@@ -135,38 +135,38 @@ type ProtoDataPoint struct {
 	XXX_unrecognized []byte       `json:"-"`
 }
 
-func (m *ProtoDataPoint) Reset()         { *m = ProtoDataPoint{} }
-func (*ProtoDataPoint) ProtoMessage()    {}
+func (m *DataPoint) Reset()      { *m = DataPoint{} }
+func (*DataPoint) ProtoMessage() {}
 
-func (m *ProtoDataPoint) GetMetric() string {
+func (m *DataPoint) GetMetric() string {
 	if m != nil && m.Metric != nil {
 		return *m.Metric
 	}
 	return ""
 }
 
-func (m *ProtoDataPoint) GetTimestamp() int64 {
+func (m *DataPoint) GetTimestamp() int64 {
 	if m != nil && m.Timestamp != nil {
 		return *m.Timestamp
 	}
 	return 0
 }
 
-func (m *ProtoDataPoint) GetValue() *Datum {
+func (m *DataPoint) GetValue() *Datum {
 	if m != nil {
 		return m.Value
 	}
 	return nil
 }
 
-func (m *ProtoDataPoint) GetMetricType() MetricType {
+func (m *DataPoint) GetMetricType() MetricType {
 	if m != nil && m.MetricType != nil {
 		return *m.MetricType
 	}
 	return MetricType_GAUGE
 }
 
-func (m *ProtoDataPoint) GetDimensions() []*Dimension {
+func (m *DataPoint) GetDimensions() []*Dimension {
 	if m != nil {
 		return m.Dimensions
 	}
@@ -174,15 +174,15 @@ func (m *ProtoDataPoint) GetDimensions() []*Dimension {
 }
 
 type DataPointUploadMessage struct {
-	Datapoints       []*ProtoDataPoint `protobuf:"bytes,1,rep,name=datapoints" json:"datapoints,omitempty"`
-	XXX_unrecognized []byte            `json:"-"`
+	Datapoints       []*DataPoint `protobuf:"bytes,1,rep,name=datapoints" json:"datapoints,omitempty"`
+	XXX_unrecognized []byte       `json:"-"`
 }
 
 func (m *DataPointUploadMessage) Reset()         { *m = DataPointUploadMessage{} }
 func (m *DataPointUploadMessage) String() string { return proto.CompactTextString(m) }
 func (*DataPointUploadMessage) ProtoMessage()    {}
 
-func (m *DataPointUploadMessage) GetDatapoints() []*ProtoDataPoint {
+func (m *DataPointUploadMessage) GetDatapoints() []*DataPoint {
 	if m != nil {
 		return m.Datapoints
 	}

@@ -34,7 +34,7 @@ func TestGoMetrics(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(datapoints, ShouldNotBeNil)
 
-		So(datapoints.Len(), ShouldEqual, 30)
+		So(datapoints.Len(), ShouldEqual, 29) // should be 29 because num_cgo_call should be 0 and ignored
 
 		testDataPoint := func(dp *DataPoint, t sfxproto.MetricType) {
 			So(dp.Type(), ShouldEqual, t)

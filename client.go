@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/zvelo/go-signalfx/sfxproto"
@@ -18,7 +19,7 @@ const (
 // A Client is used to send datapoints to SignalFx
 type Client struct {
 	config *Config
-	tr     *http.Transport
+	tr     http.RoundTripper
 	client *http.Client
 }
 
@@ -35,7 +36,7 @@ func NewClient(config *Config) *Client {
 }
 
 // Submit forwards raw datapoints to SignalFx
-func (c *Client) Submit(ctx context.Context, pdps *sfxproto.ProtoDataPoints) error {
+func (c *Client) Submit(ctx context.Context, pdps *sfxproto.DataPoints) error {
 	if ctx == nil {
 		ctx = context.Background()
 	} else if ctx.Err() != nil {
@@ -65,8 +66,12 @@ func (c *Client) Submit(ctx context.Context, pdps *sfxproto.ProtoDataPoints) err
 
 	select {
 	case <-ctx.Done():
-		c.tr.CancelRequest(req)
-		<-done // wait for the request to be cancelled
+		if tr, ok := c.tr.(*http.Transport); ok {
+			tr.CancelRequest(req)
+			<-done // wait for the request to be canceled
+		} else {
+			log.Printf("[ERR] tried to cancel non-cancellable transport %T", tr)
+		}
 		return ErrContext(ctx.Err())
 	case <-done:
 		if err != nil {

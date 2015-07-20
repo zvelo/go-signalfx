@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strconv"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/zvelo/go-signalfx/sfxproto"
@@ -101,13 +104,13 @@ func TestReporter(t *testing.T) {
 			cb := 0
 			addDataPointF := func(dims sfxproto.Dimensions) *DataPoints {
 				cb++
-				count0, err := NewCounter("count0", Value(0), nil)
+				count0, err := NewCounter("count0", Value(1), nil)
 				if err != nil {
 					return nil
 				}
 				So(count0, ShouldNotBeNil)
 
-				count1, err := NewCounter("count1", Value(0), nil)
+				count1, err := NewCounter("count1", Value(1), nil)
 				if err != nil {
 					return nil
 				}
@@ -136,10 +139,33 @@ func TestReporter(t *testing.T) {
 		})
 
 		Convey("reporting should work", func() {
-			reporter.NewBucket("bucket", nil)
+			bucket := reporter.NewBucket("bucket", nil)
+			bucket.Add(2)
 			dps, err := reporter.Report(context.Background())
 			So(err, ShouldBeNil)
-			So(dps.Len(), ShouldEqual, 3)
+			So(dps.Len(), ShouldEqual, 5) // TODO: verify that 5 is correct, not just expected
+		})
+
+		Convey("a blanked counter shouldn't report", func() {
+			counter := reporter.NewCounter("foo", Value(0), nil)
+			_ = counter
+			_, err := reporter.Report(context.Background())
+			So(err, ShouldEqual, sfxproto.ErrMarshalNoData)
+		})
+
+		Convey("a cumulative counter shouldn't report the same value", func() {
+			counter := reporter.NewCumulative("foo", Value(0), nil)
+			_, err := reporter.Report(context.Background())
+			So(err, ShouldEqual, sfxproto.ErrMarshalNoData)
+			counter.Set(1)
+			_, err = reporter.Report(context.Background())
+			So(err, ShouldBeNil)
+			// since it didn't change, it shouldn't report
+			_, err = reporter.Report(context.Background())
+			So(err, ShouldEqual, sfxproto.ErrMarshalNoData)
+			counter.Set(2)
+			_, err = reporter.Report(context.Background())
+			So(err, ShouldBeNil)
 		})
 
 		Convey("report should handle a previously canceled context", func() {
@@ -156,7 +182,8 @@ func TestReporter(t *testing.T) {
 		})
 
 		Convey("report should handle an 'in-flight' context cancellation", func() {
-			reporter.NewBucket("bucket", nil)
+			bucket := reporter.NewBucket("bucket", nil)
+			bucket.Add(1)
 			ctx, cancelF := context.WithCancel(context.Background())
 			go cancelF()
 			dps, err := reporter.Report(ctx)
@@ -176,14 +203,45 @@ func TestReporter(t *testing.T) {
 			ccopy := config.Clone()
 			ccopy.URL = "z" + ts.URL
 			tmpR := NewReporter(ccopy, nil)
-			tmpR.NewBucket("bucket", nil)
+			bucket := tmpR.NewBucket("bucket", nil)
+			bucket.Add(1)
 			dps, err := tmpR.Report(context.Background())
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "Post z"+ts.URL+": unsupported protocol scheme \"zhttp\"")
 			So(dps, ShouldBeNil)
 		})
 
-		Convey("report should fail when Getters return an error", func() {
+		Convey("Inc should handle cheap one-shot counter increments", func() {
+			config := config.Clone()
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(`"OK"`))
+			}))
+			defer ts.Close()
+			config.URL = ts.URL
+			r := NewReporter(config, nil)
+
+			// FIXME: it _really_ should be easier to
+			// override a reporter's client…
+			tw := transportWrapper{wrapped: r.client.tr}
+			r.client.tr = &tw
+			r.client.client = &http.Client{Transport: &tw}
+			So(tw.counter, ShouldBeZeroValue)
+
+			hostname, err := os.Hostname()
+			if err != nil {
+				hostname = fmt.Sprintf("zvelo-testing-host-%d", os.Getpid())
+			}
+			r.Inc("test-metric", map[string]string{
+				"client": "Wilkinson et Cie",
+				"host":   hostname,
+				"pid":    strconv.Itoa(os.Getpid()),
+			}, 1)
+			_, err = r.Report(context.Background())
+			So(err, ShouldBeNil)
+			So(tw.counter, ShouldEqual, 1)
+		})
+
+		Convey("report does not include broken Getters", func() {
 			ccopy := config.Clone()
 			ccopy.URL = "z" + ts.URL
 			tmpR := NewReporter(ccopy, nil)
@@ -207,7 +265,7 @@ func TestReporter(t *testing.T) {
 			dps, err := tmpR.Report(context.Background())
 			So(dps, ShouldBeNil)
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "bad getter")
+			So(err.Error(), ShouldEqual, "no data to marshal")
 		})
 
 		Convey("Getters should work", func() {
@@ -465,6 +523,52 @@ func TestReporter(t *testing.T) {
 				So(cui64.Value(), ShouldEqual, dpcui64.IntValue())
 			})
 		})
+		Convey("Testing background reporting", func() {
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(`"OK"`))
+			}))
+			defer ts.Close()
+
+			config := NewConfig()
+			So(config, ShouldNotBeNil)
+
+			config.URL = ts.URL
+
+			reporter := NewReporter(config, nil)
+			So(reporter, ShouldNotBeNil)
+
+			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			So(len(reporter.buckets), ShouldEqual, 0)
+
+			// FIXME: it should be easier to override a client's transport…
+			tw := transportWrapper{wrapped: reporter.client.tr}
+			reporter.client.tr = &tw
+			reporter.client.client = &http.Client{Transport: &tw}
+
+			So(tw.counter, ShouldBeZeroValue)
+			var count int
+			counter := reporter.NewCounter("count", Value(count), nil)
+			err := counter.Set(1)
+			So(err, ShouldBeNil)
+			_, err = reporter.Report(nil)
+			So(err, ShouldBeNil)
+			So(tw.counter, ShouldEqual, 1)
+
+			cancelFunc := reporter.RunInBackground(time.Second * 5)
+			err = counter.Set(2)
+			So(err, ShouldBeNil)
+			time.Sleep(time.Second * 7)
+			So(tw.counter, ShouldEqual, 2)
+			// let it run once more, with no data to send
+			time.Sleep(time.Second * 7)
+			So(tw.counter, ShouldEqual, 2)
+			cancelFunc()
+			// prove that it's cancelled
+			err = counter.Set(3)
+			So(err, ShouldBeNil)
+			time.Sleep(time.Second * 7)
+			So(tw.counter, ShouldEqual, 2)
+		})
 	})
 }
 
@@ -506,17 +610,28 @@ func ExampleReporter() {
 	i.Inc(5)
 
 	dps, err := reporter.Report(context.Background())
-
-	fmt.Printf("Gauge: %d\n", gauge.IntValue())
-	fmt.Printf("Incrementer: %d\n", i.Value())
-	fmt.Printf("Cumulative: %d\n", cumulative.IntValue())
-	fmt.Printf("Error: %v\n", err)
-	fmt.Printf("DataPoints: %d\n", dps.Len())
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+	} else {
+		fmt.Printf("Gauge: %d\n", gauge.IntValue())
+		fmt.Printf("Incrementer: %d\n", i.Value())
+		fmt.Printf("Cumulative: %d\n", cumulative.IntValue())
+		fmt.Printf("DataPoints: %d\n", dps.Len())
+	}
 
 	// Output:
 	// Gauge: 7
 	// Incrementer: 6
 	// Cumulative: 1
-	// Error: <nil>
 	// DataPoints: 3
+}
+
+type transportWrapper struct {
+	wrapped http.RoundTripper
+	counter int
+}
+
+func (tw *transportWrapper) RoundTrip(req *http.Request) (*http.Response, error) {
+	tw.counter++
+	return tw.wrapped.RoundTrip(req)
 }

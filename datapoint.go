@@ -19,13 +19,15 @@ var (
 	ErrNoMetricName = fmt.Errorf("no metric name")
 )
 
-// A DataPoint is a light wrapper around sfxproto.ProtoDataPoint. It adds the
+// A DataPoint is a light wrapper around sfxproto.DataPoint. It adds the
 // ability to set values via callback by using the Getter Interface.
 // Additionally, all operations on it are goroutine/thread safe.
 type DataPoint struct {
-	pdp *sfxproto.ProtoDataPoint
+	pdp *sfxproto.DataPoint
 	get Getter
 	mu  sync.Mutex
+	// FIXME: this is inelegant
+	previous *sfxproto.DataPoint
 }
 
 // NewDataPoint creates a new DataPoint. val can be nil, any int type, any float
@@ -37,7 +39,7 @@ func NewDataPoint(metricType sfxproto.MetricType, metric string, val interface{}
 	}
 
 	ret := &DataPoint{
-		pdp: &sfxproto.ProtoDataPoint{
+		pdp: &sfxproto.DataPoint{
 			Metric:     proto.String(metric),
 			MetricType: metricType.Enum(),
 			Value:      &sfxproto.Datum{},
@@ -62,7 +64,7 @@ func (dp *DataPoint) Equal(val *DataPoint) bool {
 	dp.lock()
 	defer dp.unlock()
 
-	val.mu.Lock()
+	val.mu.Lock() // FIXME: why dp.lock() above but val.mu.Lock() here?
 	defer val.mu.Unlock()
 
 	if dp.get != nil || val.get != nil {
@@ -79,8 +81,9 @@ func (dp *DataPoint) Clone() *DataPoint {
 	defer dp.unlock()
 
 	return &DataPoint{
-		pdp: dp.pdp.Clone(),
-		get: dp.get,
+		pdp:      dp.pdp.Clone(),
+		get:      dp.get,
+		previous: dp.previous,
 	}
 }
 
@@ -102,6 +105,8 @@ func (dp *DataPoint) SetTime(t time.Time) {
 
 // Metric returns the metric name of the DataPoint
 func (dp *DataPoint) Metric() string {
+	// TODO: is there any need to mutex this, since strings are
+	// immutable and thus it will never be corrupted?
 	dp.lock()
 	defer dp.unlock()
 
@@ -228,6 +233,7 @@ func (dp *DataPoint) Set(val interface{}) error {
 	dp.lock()
 	defer dp.unlock()
 
+	dp.previous = dp.pdp.Clone()
 	dp.pdp.Value.Reset()
 	dp.get = nil
 

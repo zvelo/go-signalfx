@@ -2,7 +2,9 @@ package signalfx
 
 import (
 	"sync"
+	"time"
 
+	"github.com/coreos/fleet/log"
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
 )
@@ -21,6 +23,7 @@ type Reporter struct {
 	preReportCallbacks []func()
 	datapointCallbacks []DataPointCallback
 	mu                 sync.Mutex
+	oneShots           []*sfxproto.DataPoint
 }
 
 // NewReporter returns a new Reporter object. Any dimensions supplied will be
@@ -271,14 +274,101 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		ret.Append(b.DataPoints(r.defaultDimensions))
 	}
 
-	pdps, err := ret.ProtoDataPoints()
-	if err != nil {
+	var (
+		counters           []*DataPoint
+		cumulativeCounters []*DataPoint
+	)
+	ret = ret.filter(func(dp *DataPoint) bool {
+		if err := dp.update(); err != nil {
+			return false
+		}
+
+		switch *dp.pdp.MetricType {
+		case sfxproto.MetricType_COUNTER:
+			if dp.pdp.Value.IntValue != nil && *dp.pdp.Value.IntValue != 0 {
+				counters = append(counters, dp)
+				return true
+			}
+		case sfxproto.MetricType_CUMULATIVE_COUNTER:
+			if !dp.pdp.Equal(dp.previous) {
+				cumulativeCounters = append(cumulativeCounters, dp)
+				return true
+			}
+		default:
+			return true
+		}
+		return false
+	})
+	pdps := ret.ProtoDataPoints()
+
+	// append all of the one-shots
+	for _, pdp := range r.oneShots {
+		pdps.Add(pdp)
+	}
+
+	if err := r.client.Submit(ctx, pdps); err != nil {
 		return nil, err
 	}
 
-	if err = r.client.Submit(ctx, pdps); err != nil {
-		return nil, err
+	// set submitted counters to zero
+	for _, counter := range counters {
+		// TODO: what should be done if this fails?
+		counter.Set(0)
 	}
+	// remember submitted cumulative counter values
+	for _, counter := range cumulativeCounters {
+		counter.previous = counter.pdp
+	}
+
+	// and clear the one-shots
+	r.oneShots = nil
 
 	return ret, nil
+}
+
+func (r *Reporter) Inc(metric string, dimensions map[string]string, delta int64) error {
+	r.lock()
+	defer r.unlock()
+
+	var protoDims []*sfxproto.Dimension
+	for k, v := range dimensions {
+		protoDims = append(protoDims, &sfxproto.Dimension{Key: &k, Value: &v})
+	}
+	timestamp := time.Now().Unix()
+	metricType := sfxproto.MetricType_COUNTER
+	dp := &sfxproto.DataPoint{
+		Metric:     &metric,
+		Timestamp:  &timestamp,
+		MetricType: &metricType,
+		Dimensions: protoDims,
+		Value:      &sfxproto.Datum{IntValue: &delta},
+	}
+	r.oneShots = append(r.oneShots, dp)
+	return nil
+}
+
+// RunInBackground starts a goroutine which calls Reporter.Report on
+// the specified interval.  It returns a function which may be used to
+// cancel the backgrounding.
+func (r *Reporter) RunInBackground(interval time.Duration) (cancel func()) {
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(interval)
+		for {
+			select {
+			case <-ticker.C:
+				dps, err := r.Report(context.Background())
+				if err != nil {
+					log.Error(err)
+				} else if dps != nil {
+					log.Infof("reported %d datapoints", dps.Len())
+				}
+			case <-done:
+				return
+			}
+		}
+	}()
+	return func() {
+		done <- struct{}{}
+	}
 }
