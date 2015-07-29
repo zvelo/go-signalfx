@@ -2,6 +2,7 @@
 
   * Start feature "Example code for using signalfx"
   https://www.pivotaltracker.com/story/show/99730922
+  https://github.com/zvelo/go-signalfx/pull/2
 
 2015-07-07  Bob Uhl <buhl@zvelo.com>
 
