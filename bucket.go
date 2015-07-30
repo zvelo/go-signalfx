@@ -13,7 +13,7 @@ import (
 // are goroutine safe.
 type Bucket struct {
 	metric       string
-	dimensions   sfxproto.Dimensions
+	dimensions   map[string]string
 	count        uint64
 	min          int64
 	max          int64
@@ -37,8 +37,8 @@ func (b *Bucket) Clone() *Bucket {
 	defer b.unlock()
 
 	return &Bucket{
-		metric:       b.metric,             // can't use Metric() since we already have a lock
-		dimensions:   b.dimensions.Clone(), // can't use Dimensions() since we already have a lock
+		metric:       b.metric,                                  // can't use Metric() since we already have a lock
+		dimensions:   sfxproto.Dimensions(b.dimensions).Clone(), // can't use Dimensions() since we already have a lock
 		count:        b.Count(),
 		min:          b.Min(),
 		max:          b.Max(),
@@ -62,7 +62,7 @@ func (b *Bucket) Equal(r *Bucket) bool {
 		return false
 	}
 
-	if !b.dimensions.Equal(r.dimensions) {
+	if !sfxproto.Dimensions(b.dimensions).Equal(r.dimensions) {
 		return false
 	}
 
@@ -107,11 +107,11 @@ func (b *Bucket) SetMetric(name string) {
 
 // Dimensions returns a copy of the dimensions of the Bucket. Changes are not
 // reflected inside the Bucket itself.
-func (b *Bucket) Dimensions() sfxproto.Dimensions {
+func (b *Bucket) Dimensions() map[string]string {
 	b.lock()
 	defer b.unlock()
 
-	return b.dimensions.Clone()
+	return sfxproto.Dimensions(b.dimensions).Clone()
 }
 
 // SetDimension adds or overwrites the dimension at key with value. If the key
@@ -130,7 +130,7 @@ func (b *Bucket) SetDimension(key, value string) {
 // SetDimensions adds or overwrites multiple dimensions. Because the passed in
 // dimensions can not be locked by this method, it is important that the caller
 // ensures its state does not change for the duration of the operation.
-func (b *Bucket) SetDimensions(dims sfxproto.Dimensions) {
+func (b *Bucket) SetDimensions(dims map[string]string) {
 	for key, value := range dims {
 		b.SetDimension(key, value)
 	}
@@ -174,10 +174,10 @@ func (b *Bucket) SumOfSquares() int64 {
 // NewBucket creates a new Bucket. Because the passed in dimensions can not be
 // locked by this method, it is important that the caller ensures its state does
 // not change for the duration of the operation.
-func NewBucket(metric string, dimensions sfxproto.Dimensions) *Bucket {
+func NewBucket(metric string, dimensions map[string]string) *Bucket {
 	return &Bucket{
 		metric:     metric,
-		dimensions: dimensions.Clone(),
+		dimensions: sfxproto.Dimensions(dimensions).Clone(),
 	}
 }
 
@@ -210,11 +210,11 @@ func (b *Bucket) Add(val int64) {
 	}
 }
 
-func (b *Bucket) dimFor(defaultDims sfxproto.Dimensions, rollup string) sfxproto.Dimensions {
+func (b *Bucket) dimFor(defaultDims map[string]string, rollup string) map[string]string {
 	b.lock()
 	defer b.unlock()
 
-	dims := defaultDims.Append(b.dimensions)
+	dims := sfxproto.Dimensions(defaultDims).Append(b.dimensions)
 	dims["rollup"] = rollup
 
 	return dims
@@ -224,7 +224,7 @@ func (b *Bucket) dimFor(defaultDims sfxproto.Dimensions, rollup string) sfxproto
 // the passed in dimensions can not be locked by this method, it is important
 // that the caller ensures its state does not change for the duration of the
 // operation.
-func (b *Bucket) CountDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
+func (b *Bucket) CountDataPoint(defaultDims map[string]string) *DataPoint {
 	dp, _ := NewCounter(b.Metric(), b.Count(), b.dimFor(defaultDims, "count"))
 	return dp
 }
@@ -233,7 +233,7 @@ func (b *Bucket) CountDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 // passed in dimensions can not be locked by this method, it is important that
 // the caller ensures its state does not change for the duration of the
 // operation.
-func (b *Bucket) SumDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
+func (b *Bucket) SumDataPoint(defaultDims map[string]string) *DataPoint {
 	dp, _ := NewCounter(b.Metric(), b.Sum(), b.dimFor(defaultDims, "sum"))
 	return dp
 }
@@ -242,7 +242,7 @@ func (b *Bucket) SumDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 // SumOfSquares. Because the passed in dimensions can not be locked by this
 // method, it is important that the caller ensures its state does not change for
 // the duration of the operation.
-func (b *Bucket) SumOfSquaresDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
+func (b *Bucket) SumOfSquaresDataPoint(defaultDims map[string]string) *DataPoint {
 	dp, _ := NewCounter(b.Metric(), b.SumOfSquares(), b.dimFor(defaultDims, "sumsquare"))
 	return dp
 }
@@ -252,7 +252,7 @@ func (b *Bucket) SumOfSquaresDataPoint(defaultDims sfxproto.Dimensions) *DataPoi
 // bucket since it was created or last reset. Because the passed in dimensions
 // can not be locked by this method, it is important that the caller ensures its
 // state does not change for the duration of the operation.
-func (b *Bucket) MinDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
+func (b *Bucket) MinDataPoint(defaultDims map[string]string) *DataPoint {
 	min := atomic.SwapInt64(&b.min, math.MaxInt64)
 
 	if b.Count() != 0 && min != math.MaxInt64 {
@@ -268,7 +268,7 @@ func (b *Bucket) MinDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 // bucket since it was created or last reset. Because the passed in dimensions
 // can not be locked by this method, it is important that the caller ensures its
 // state does not change for the duration of the operation.
-func (b *Bucket) MaxDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
+func (b *Bucket) MaxDataPoint(defaultDims map[string]string) *DataPoint {
 	max := atomic.SwapInt64(&b.max, math.MinInt64)
 
 	if b.Count() != 0 && max != math.MinInt64 {
@@ -284,7 +284,7 @@ func (b *Bucket) MaxDataPoint(defaultDims sfxproto.Dimensions) *DataPoint {
 // Max values. Because the passed in dimensions
 // can not be locked by this method, it is important that the caller ensures its
 // state does not change for the duration of the operation.
-func (b *Bucket) DataPoints(defaultDims sfxproto.Dimensions) *DataPoints {
+func (b *Bucket) DataPoints(defaultDims map[string]string) *DataPoints {
 	return NewDataPoints(5).
 		Add(b.CountDataPoint(defaultDims)).
 		Add(b.SumDataPoint(defaultDims)).
