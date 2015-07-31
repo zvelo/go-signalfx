@@ -333,10 +333,21 @@ func (r *Reporter) Inc(metric string, dimensions map[string]string, delta int64)
 	defer r.unlock()
 
 	var protoDims []*sfxproto.Dimension
-	for k, v := range dimensions {
-		protoDims = append(protoDims, &sfxproto.Dimension{Key: &k, Value: &v})
+	for k, v := range r.defaultDimensions {
+		// have to copy the values, since these are stored as
+		// pointers…
+		var dk, dv string
+		dk = k
+		dv = v
+		protoDims = append(protoDims, &sfxproto.Dimension{Key: &dk, Value: &dv})
 	}
-	timestamp := time.Now().Unix()
+	for k, v := range dimensions {
+		var dk, dv string
+		dk = k
+		dv = v
+		protoDims = append(protoDims, &sfxproto.Dimension{Key: &dk, Value: &dv})
+	}
+	timestamp := time.Now().UnixNano() / 1000000
 	metricType := sfxproto.MetricType_COUNTER
 	dp := &sfxproto.DataPoint{
 		Metric:     &metric,
