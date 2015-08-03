@@ -102,7 +102,7 @@ func TestReporter(t *testing.T) {
 			So(reporter.datapoints.Len(), ShouldEqual, 0)
 
 			cb := 0
-			addDataPointF := func(dims sfxproto.Dimensions) *DataPoints {
+			addDataPointF := func(dims map[string]string) *DataPoints {
 				cb++
 				count0, err := NewCounter("count0", Value(1), nil)
 				if err != nil {
@@ -120,8 +120,7 @@ func TestReporter(t *testing.T) {
 					Add(count0).
 					Add(count1)
 			}
-
-			addDataPointErrF := func(dims sfxproto.Dimensions) *DataPoints {
+			addDataPointErrF := func(dims map[string]string) *DataPoints {
 				cb++
 				return nil
 			}
@@ -218,7 +217,7 @@ func TestReporter(t *testing.T) {
 			}))
 			defer ts.Close()
 			config.URL = ts.URL
-			r := NewReporter(config, nil)
+			r := NewReporter(config, map[string]string{"foo": "bar"})
 
 			// FIXME: it _really_ should be easier to
 			// override a reporter's client…
@@ -575,24 +574,24 @@ func TestReporter(t *testing.T) {
 func ExampleReporter() {
 	// auth token will be taken from $SFX_API_TOKEN if it exists
 	// for this example, it must be set correctly
-	reporter := NewReporter(NewConfig(), sfxproto.Dimensions{
+	reporter := NewReporter(NewConfig(), map[string]string{
 		"test_dimension0": "value0",
 		"test_dimension1": "value1",
 	})
 
 	gval := 0
-	gauge := reporter.NewGauge("TestGauge", Value(&gval), sfxproto.Dimensions{
+	gauge := reporter.NewGauge("TestGauge", Value(&gval), map[string]string{
 		"test_gauge_dimension0": "gauge0",
 		"test_gauge_dimension1": "gauge1",
 	})
 
-	i, _ := reporter.NewInt64("TestInt64", sfxproto.Dimensions{
+	i, _ := reporter.NewInt64("TestInt64", map[string]string{
 		"test_incrementer_dimension0": "incrementer0",
 		"test_incrementer_dimension1": "incrementer1",
 	})
 
 	cval := int64(0)
-	cumulative := reporter.NewCumulative("TestCumulative", Value(&cval), sfxproto.Dimensions{
+	cumulative := reporter.NewCumulative("TestCumulative", Value(&cval), map[string]string{
 		"test_cumulative_dimension0": "cumulative0",
 		"test_cumulative_dimension1": "cumulative1",
 	})
