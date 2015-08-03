@@ -289,14 +289,17 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		case sfxproto.MetricType_COUNTER:
 			if dp.pdp.Value.IntValue != nil && *dp.pdp.Value.IntValue != 0 {
 				counters = append(counters, dp)
+				dp.SetTime(time.Now())
 				return true
 			}
 		case sfxproto.MetricType_CUMULATIVE_COUNTER:
 			if !dp.pdp.Equal(dp.previous) {
 				cumulativeCounters = append(cumulativeCounters, dp)
+				dp.SetTime(time.Now())
 				return true
 			}
 		default:
+			dp.SetTime(time.Now())
 			return true
 		}
 		return false
