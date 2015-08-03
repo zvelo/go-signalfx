@@ -217,7 +217,7 @@ func TestReporter(t *testing.T) {
 			}))
 			defer ts.Close()
 			config.URL = ts.URL
-			r := NewReporter(config, nil)
+			r := NewReporter(config, map[string]string{"foo": "bar"})
 
 			// FIXME: it _really_ should be easier to
 			// override a reporter's client…
