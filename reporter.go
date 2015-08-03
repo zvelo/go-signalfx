@@ -373,11 +373,9 @@ func (r *Reporter) RunInBackground(interval time.Duration) (cancel func()) {
 		for {
 			select {
 			case <-ticker.C:
-				dps, err := r.Report(context.Background())
+				_, err := r.Report(context.Background())
 				if err != nil {
 					log.Error(err)
-				} else if dps != nil {
-					log.Infof("reported %d datapoints", dps.Len())
 				}
 			case <-done:
 				return
