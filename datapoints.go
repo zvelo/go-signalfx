@@ -107,24 +107,20 @@ func (dps *DataPoints) RemoveDataPoints(val *DataPoints) {
 	}
 }
 
-// ProtoDataPoints returns a sfxproto.ProtoDataPoints object representing the
-// underlying DataPoint objects contained in the DataPoints object. If a
-// DataPoint has a Getter, the value will be updated before returning.
-func (dps *DataPoints) ProtoDataPoints() (*sfxproto.ProtoDataPoints, error) {
-	ret := sfxproto.NewProtoDataPoints(dps.Len())
+// ProtoDataPoints returns a sfxproto.DataPoints object representing the
+// underlying DataPoint objects contained in the DataPoints object.
+func (dps *DataPoints) ProtoDataPoints() *sfxproto.DataPoints {
+	ret := sfxproto.NewDataPoints(dps.Len())
 
 	dps.lock()
 	defer dps.unlock()
 
 	for dp := range dps.datapoints {
-		if err := dp.update(); err != nil {
-			return nil, err
-		}
 
 		ret.Add(dp.pdp)
 	}
 
-	return ret, nil
+	return ret
 }
 
 // Len returns the number of datapoints the DataPoints object contains
@@ -133,4 +129,23 @@ func (dps *DataPoints) Len() int {
 	defer dps.unlock()
 
 	return len(dps.datapoints)
+}
+
+// filter returns a new DataPoints structure consisting of only those
+// points where filterFunc is true
+func (dps *DataPoints) filter(filterFunc func(*DataPoint) bool) *DataPoints {
+	ret := &DataPoints{
+		datapoints: make(map[*DataPoint]interface{}, dps.Len()),
+	}
+
+	dps.lock()
+	defer dps.unlock()
+
+	for dp := range dps.datapoints {
+		if filterFunc(dp) {
+			ret.datapoints[dp] = nil
+		}
+	}
+
+	return ret
 }

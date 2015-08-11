@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/zvelo/go-signalfx"
-	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
 )
 
@@ -13,12 +12,12 @@ func main() {
 	config := signalfx.NewConfig()
 	config.AuthToken = "<YOUR_SIGNALFX_API_TOKEN>" // if $SFX_API_TOKEN is set, this is unnecessary
 
-	reporter := signalfx.NewReporter(config, sfxproto.Dimensions{
+	reporter := signalfx.NewReporter(config, map[string]string{
 		"dim0": "val0",
 		"dim1": "val1",
 	})
 
-	gauge := reporter.NewGauge("SomeGauge", 5, sfxproto.Dimensions{
+	gauge := reporter.NewGauge("SomeGauge", 5, map[string]string{
 		"gauge_dim0": "gauge_val0",
 		"gauge_dim1": "gauge_val1",
 	})

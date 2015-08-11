@@ -61,13 +61,7 @@ func TestDataPoints(t *testing.T) {
 		dps.RemoveDataPoints(rs)
 		So(dps.Len(), ShouldEqual, 1)
 
-		pdps, err := dps.ProtoDataPoints()
-		So(err, ShouldBeNil)
+		pdps := dps.ProtoDataPoints()
 		So(pdps.Len(), ShouldEqual, 1)
-
-		pdps, err = dps.ProtoDataPoints()
-		So(err, ShouldNotBeNil)
-		So(err, ShouldEqual, ErrIllegalType)
-		So(pdps, ShouldBeNil)
 	})
 }

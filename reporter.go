@@ -2,31 +2,36 @@ package signalfx
 
 import (
 	"sync"
+	"time"
 
+	"github.com/coreos/fleet/log"
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
 )
 
-// DataPointCallback is a functional callback that can be passed to DataPointCallback as a way
-// to have the caller calculate and return their own datapoints
-type DataPointCallback func(defaultDims sfxproto.Dimensions) *DataPoints
+// DataPointCallback is a functional callback that can be passed to
+// DataPointCallback as a way to have the caller calculate and return
+// their own datapoints
+type DataPointCallback func(defaultDims map[string]string) *DataPoints
 
 // Reporter is an object that tracks DataPoints and manages a Client. It is the
 // recommended way to send data to SignalFX.
 type Reporter struct {
 	client             *Client
-	defaultDimensions  sfxproto.Dimensions
+	defaultDimensions  map[string]string
 	datapoints         *DataPoints
 	buckets            map[*Bucket]interface{}
 	preReportCallbacks []func()
 	datapointCallbacks []DataPointCallback
 	mu                 sync.Mutex
+	oneShots           []*sfxproto.DataPoint
 }
 
 // NewReporter returns a new Reporter object. Any dimensions supplied will be
 // appended to all DataPoints sent to SignalFX. config is copied, so future
 // changes to the external config object are not reflected within the reporter.
-func NewReporter(config *Config, defaultDimensions sfxproto.Dimensions) *Reporter {
+func NewReporter(config *Config,
+	defaultDimensions map[string]string) *Reporter {
 	return &Reporter{
 		client:            NewClient(config),
 		defaultDimensions: defaultDimensions,
@@ -45,7 +50,7 @@ func (r *Reporter) unlock() {
 
 // NewBucket creates a new Bucket object that is tracked by the Reporter.
 // Buckets are goroutine safe.
-func (r *Reporter) NewBucket(metric string, dimensions sfxproto.Dimensions) *Bucket {
+func (r *Reporter) NewBucket(metric string, dimensions map[string]string) *Bucket {
 	ret := NewBucket(metric, dimensions)
 
 	r.lock()
@@ -61,8 +66,8 @@ func (r *Reporter) NewBucket(metric string, dimensions sfxproto.Dimensions) *Buc
 // Getters that return pointer types should not have their value changed, unless
 // atomically, when in a Reporter, except within a PreReportCallback, for
 // goroutine safety.
-func (r *Reporter) NewCumulative(metric string, val interface{}, dims sfxproto.Dimensions) *DataPoint {
-	dp, _ := NewCumulative(metric, val, r.defaultDimensions.Append(dims))
+func (r *Reporter) NewCumulative(metric string, val interface{}, dims map[string]string) *DataPoint {
+	dp, _ := NewCumulative(metric, val, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
 	r.datapoints.Add(dp)
 	return dp
 }
@@ -72,8 +77,8 @@ func (r *Reporter) NewCumulative(metric string, val interface{}, dims sfxproto.D
 // any of those types. Literal pointers are copied by value. Getters that return
 // pointer types should not have their value changed, unless atomically, when in
 // a Reporter, except within a PreReportCallback, for goroutine safety.
-func (r *Reporter) NewGauge(metric string, val interface{}, dims sfxproto.Dimensions) *DataPoint {
-	dp, _ := NewGauge(metric, val, r.defaultDimensions.Append(dims))
+func (r *Reporter) NewGauge(metric string, val interface{}, dims map[string]string) *DataPoint {
+	dp, _ := NewGauge(metric, val, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
 	r.datapoints.Add(dp)
 	return dp
 }
@@ -84,8 +89,8 @@ func (r *Reporter) NewGauge(metric string, val interface{}, dims sfxproto.Dimens
 // that return pointer types should not have their value changed, unless
 // atomically, when in a Reporter, except within a PreReportCallback, for
 // goroutine safety.
-func (r *Reporter) NewCounter(metric string, val interface{}, dims sfxproto.Dimensions) *DataPoint {
-	dp, _ := NewCounter(metric, val, r.defaultDimensions.Append(dims))
+func (r *Reporter) NewCounter(metric string, val interface{}, dims map[string]string) *DataPoint {
+	dp, _ := NewCounter(metric, val, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
 	r.datapoints.Add(dp)
 	return dp
 }
@@ -93,9 +98,9 @@ func (r *Reporter) NewCounter(metric string, val interface{}, dims sfxproto.Dime
 // NewInt32 creates a new DataPoint object with type COUNTER whose value is
 // bound to an Int32. All methods on Int32 are goroutine safe and it may also be
 // modified in atomic operations as an int32.
-func (r *Reporter) NewInt32(metric string, dims sfxproto.Dimensions) (*Int32, *DataPoint) {
+func (r *Reporter) NewInt32(metric string, dims map[string]string) (*Int32, *DataPoint) {
 	ret := Int32(0)
-	dp, _ := NewCounter(metric, &ret, r.defaultDimensions.Append(dims))
+	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
 	if dp == nil {
 		return nil, nil
 	}
@@ -106,9 +111,9 @@ func (r *Reporter) NewInt32(metric string, dims sfxproto.Dimensions) (*Int32, *D
 // NewCumulativeInt32 creates a new DataPoint object with type
 // CUMULATIVE_COUNTER whose value is bound to an Int32. All methods on Int32 are
 // goroutine safe and it may also be modified in atomic operations as an int32.
-func (r *Reporter) NewCumulativeInt32(metric string, dims sfxproto.Dimensions) (*Int32, *DataPoint) {
+func (r *Reporter) NewCumulativeInt32(metric string, dims map[string]string) (*Int32, *DataPoint) {
 	ret := Int32(0)
-	dp, _ := NewCumulative(metric, &ret, r.defaultDimensions.Append(dims))
+	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
 	if dp == nil {
 		return nil, nil
 	}
@@ -119,9 +124,9 @@ func (r *Reporter) NewCumulativeInt32(metric string, dims sfxproto.Dimensions) (
 // NewInt64 creates a new DataPoint object with type COUNTER whose value is
 // bound to an Int64. All methods on Int64 are goroutine safe and it may also be
 // modified in atomic operations as an int64.
-func (r *Reporter) NewInt64(metric string, dims sfxproto.Dimensions) (*Int64, *DataPoint) {
+func (r *Reporter) NewInt64(metric string, dims map[string]string) (*Int64, *DataPoint) {
 	ret := Int64(0)
-	dp, _ := NewCounter(metric, &ret, r.defaultDimensions.Append(dims))
+	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
 	if dp == nil {
 		return nil, nil
 	}
@@ -132,9 +137,9 @@ func (r *Reporter) NewInt64(metric string, dims sfxproto.Dimensions) (*Int64, *D
 // NewCumulativeInt64 creates a new DataPoint object with type
 // CUMULATIVE_COUNTER whose value is bound to an Int64. All methods on Int64 are
 // goroutine safe and it may also be modified in atomic operations as an int64.
-func (r *Reporter) NewCumulativeInt64(metric string, dims sfxproto.Dimensions) (*Int64, *DataPoint) {
+func (r *Reporter) NewCumulativeInt64(metric string, dims map[string]string) (*Int64, *DataPoint) {
 	ret := Int64(0)
-	dp, _ := NewCumulative(metric, &ret, r.defaultDimensions.Append(dims))
+	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
 	if dp == nil {
 		return nil, nil
 	}
@@ -145,9 +150,9 @@ func (r *Reporter) NewCumulativeInt64(metric string, dims sfxproto.Dimensions) (
 // NewUint32 creates a new DataPoint object with type COUNTER whose value is
 // bound to an Uint32. All methods on Uint32 are goroutine safe and it may also
 // be modified in atomic operations as an uint32.
-func (r *Reporter) NewUint32(metric string, dims sfxproto.Dimensions) (*Uint32, *DataPoint) {
+func (r *Reporter) NewUint32(metric string, dims map[string]string) (*Uint32, *DataPoint) {
 	ret := Uint32(0)
-	dp, _ := NewCounter(metric, &ret, r.defaultDimensions.Append(dims))
+	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
 	if dp == nil {
 		return nil, nil
 	}
@@ -159,9 +164,9 @@ func (r *Reporter) NewUint32(metric string, dims sfxproto.Dimensions) (*Uint32, 
 // CUMULATIVE_COUNTER whose value is bound to an Uint32. All methods on Uint32
 // are goroutine safe and it may also be modified in atomic operations as an
 // uint32.
-func (r *Reporter) NewCumulativeUint32(metric string, dims sfxproto.Dimensions) (*Uint32, *DataPoint) {
+func (r *Reporter) NewCumulativeUint32(metric string, dims map[string]string) (*Uint32, *DataPoint) {
 	ret := Uint32(0)
-	dp, _ := NewCumulative(metric, &ret, r.defaultDimensions.Append(dims))
+	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
 	if dp == nil {
 		return nil, nil
 	}
@@ -172,9 +177,9 @@ func (r *Reporter) NewCumulativeUint32(metric string, dims sfxproto.Dimensions) 
 // NewUint64 creates a new DataPoint object with type COUNTER whose value is
 // bound to an Uint64. All methods on Uint64 are goroutine safe and it may also be
 // modified in atomic operations as an uint64.
-func (r *Reporter) NewUint64(metric string, dims sfxproto.Dimensions) (*Uint64, *DataPoint) {
+func (r *Reporter) NewUint64(metric string, dims map[string]string) (*Uint64, *DataPoint) {
 	ret := Uint64(0)
-	dp, _ := NewCounter(metric, &ret, r.defaultDimensions.Append(dims))
+	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
 	if dp == nil {
 		return nil, nil
 	}
@@ -185,9 +190,9 @@ func (r *Reporter) NewUint64(metric string, dims sfxproto.Dimensions) (*Uint64, 
 // NewCumulativeUint64 creates a new DataPoint object with type
 // CUMULATIVE_COUNTER whose value is bound to an Uint64. All methods on Uint64 are
 // goroutine safe and it may also be modified in atomic operations as an uint64.
-func (r *Reporter) NewCumulativeUint64(metric string, dims sfxproto.Dimensions) (*Uint64, *DataPoint) {
+func (r *Reporter) NewCumulativeUint64(metric string, dims map[string]string) (*Uint64, *DataPoint) {
 	ret := Uint64(0)
-	dp, _ := NewCumulative(metric, &ret, r.defaultDimensions.Append(dims))
+	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
 	if dp == nil {
 		return nil, nil
 	}
@@ -271,14 +276,145 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		ret.Append(b.DataPoints(r.defaultDimensions))
 	}
 
-	pdps, err := ret.ProtoDataPoints()
-	if err != nil {
+	var (
+		counters           []*DataPoint
+		cumulativeCounters []*DataPoint
+	)
+	ret = ret.filter(func(dp *DataPoint) bool {
+		if err := dp.update(); err != nil {
+			return false
+		}
+
+		switch *dp.pdp.MetricType {
+		case sfxproto.MetricType_COUNTER:
+			if dp.pdp.Value.IntValue != nil && *dp.pdp.Value.IntValue != 0 {
+				counters = append(counters, dp)
+				dp.SetTime(time.Now())
+				return true
+			}
+		case sfxproto.MetricType_CUMULATIVE_COUNTER:
+			if !dp.pdp.Equal(dp.previous) {
+				cumulativeCounters = append(cumulativeCounters, dp)
+				dp.SetTime(time.Now())
+				return true
+			}
+		default:
+			dp.SetTime(time.Now())
+			return true
+		}
+		return false
+	})
+	pdps := ret.ProtoDataPoints()
+
+	// append all of the one-shots
+	for _, pdp := range r.oneShots {
+		pdps.Add(pdp)
+	}
+
+	if err := r.client.Submit(ctx, pdps); err != nil {
 		return nil, err
 	}
 
-	if err = r.client.Submit(ctx, pdps); err != nil {
-		return nil, err
+	// set submitted counters to zero
+	for _, counter := range counters {
+		// TODO: what should be done if this fails?
+		counter.Set(0)
 	}
+	// remember submitted cumulative counter values
+	for _, counter := range cumulativeCounters {
+		counter.previous = counter.pdp
+	}
+
+	// and clear the one-shots
+	r.oneShots = nil
 
 	return ret, nil
+}
+
+func (r *Reporter) Inc(metric string, dimensions map[string]string, delta int64) error {
+	r.lock()
+	defer r.unlock()
+
+	var protoDims []*sfxproto.Dimension
+	for k, v := range r.defaultDimensions {
+		// have to copy the values, since these are stored as
+		// pointers…
+		var dk, dv string
+		dk = k
+		dv = v
+		protoDims = append(protoDims, &sfxproto.Dimension{Key: &dk, Value: &dv})
+	}
+	for k, v := range dimensions {
+		var dk, dv string
+		dk = k
+		dv = v
+		protoDims = append(protoDims, &sfxproto.Dimension{Key: &dk, Value: &dv})
+	}
+	timestamp := time.Now().UnixNano() / 1000000
+	metricType := sfxproto.MetricType_COUNTER
+	dp := &sfxproto.DataPoint{
+		Metric:     &metric,
+		Timestamp:  &timestamp,
+		MetricType: &metricType,
+		Dimensions: protoDims,
+		Value:      &sfxproto.Datum{IntValue: &delta},
+	}
+	r.oneShots = append(r.oneShots, dp)
+	return nil
+}
+
+func (r *Reporter) Record(metric string, dimensions map[string]string, value int64) error {
+	r.lock()
+	defer r.unlock()
+
+	var protoDims []*sfxproto.Dimension
+	for k, v := range r.defaultDimensions {
+		// have to copy the values, since these are stored as
+		// pointers…
+		var dk, dv string
+		dk = k
+		dv = v
+		protoDims = append(protoDims, &sfxproto.Dimension{Key: &dk, Value: &dv})
+	}
+	for k, v := range dimensions {
+		var dk, dv string
+		dk = k
+		dv = v
+		protoDims = append(protoDims, &sfxproto.Dimension{Key: &dk, Value: &dv})
+	}
+	timestamp := time.Now().UnixNano() / 1000000
+	metricType := sfxproto.MetricType_GAUGE
+	dp := &sfxproto.DataPoint{
+		Metric:     &metric,
+		Timestamp:  &timestamp,
+		MetricType: &metricType,
+		Dimensions: protoDims,
+		Value:      &sfxproto.Datum{IntValue: &value},
+	}
+	r.oneShots = append(r.oneShots, dp)
+	return nil
+}
+
+// RunInBackground starts a goroutine which calls Reporter.Report on
+// the specified interval.  It returns a function which may be used to
+// cancel the backgrounding.
+func (r *Reporter) RunInBackground(interval time.Duration) (cancel func()) {
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(interval)
+		for {
+			select {
+			case <-ticker.C:
+				_, err := r.Report(context.Background())
+				if err != nil && err != sfxproto.ErrMarshalNoData {
+					log.Error(err)
+				}
+			case <-done:
+				return
+			}
+		}
+	}()
+	return func() {
+		done <- struct{}{}
+	}
 }

@@ -19,25 +19,27 @@ var (
 	ErrNoMetricName = fmt.Errorf("no metric name")
 )
 
-// A DataPoint is a light wrapper around sfxproto.ProtoDataPoint. It adds the
+// A DataPoint is a light wrapper around sfxproto.DataPoint. It adds the
 // ability to set values via callback by using the Getter Interface.
 // Additionally, all operations on it are goroutine/thread safe.
 type DataPoint struct {
-	pdp *sfxproto.ProtoDataPoint
+	pdp *sfxproto.DataPoint
 	get Getter
 	mu  sync.Mutex
+	// FIXME: this is inelegant
+	previous *sfxproto.DataPoint
 }
 
 // NewDataPoint creates a new DataPoint. val can be nil, any int type, any float
 // type, a string, a pointer to any of those types or a Getter that returns any
 // of those types.
-func NewDataPoint(metricType sfxproto.MetricType, metric string, val interface{}, dims sfxproto.Dimensions) (*DataPoint, error) {
+func NewDataPoint(metricType sfxproto.MetricType, metric string, val interface{}, dims map[string]string) (*DataPoint, error) {
 	if len(metric) == 0 {
 		return nil, ErrNoMetricName
 	}
 
 	ret := &DataPoint{
-		pdp: &sfxproto.ProtoDataPoint{
+		pdp: &sfxproto.DataPoint{
 			Metric:     proto.String(metric),
 			MetricType: metricType.Enum(),
 			Value:      &sfxproto.Datum{},
@@ -45,7 +47,7 @@ func NewDataPoint(metricType sfxproto.MetricType, metric string, val interface{}
 	}
 
 	if dims != nil {
-		ret.pdp.Dimensions = dims.List()
+		ret.pdp.Dimensions = sfxproto.Dimensions(dims).List()
 	}
 
 	ret.SetTime(time.Now())
@@ -62,7 +64,7 @@ func (dp *DataPoint) Equal(val *DataPoint) bool {
 	dp.lock()
 	defer dp.unlock()
 
-	val.mu.Lock()
+	val.mu.Lock() // FIXME: why dp.lock() above but val.mu.Lock() here?
 	defer val.mu.Unlock()
 
 	if dp.get != nil || val.get != nil {
@@ -79,8 +81,9 @@ func (dp *DataPoint) Clone() *DataPoint {
 	defer dp.unlock()
 
 	return &DataPoint{
-		pdp: dp.pdp.Clone(),
-		get: dp.get,
+		pdp:      dp.pdp.Clone(),
+		get:      dp.get,
+		previous: dp.previous,
 	}
 }
 
@@ -102,6 +105,8 @@ func (dp *DataPoint) SetTime(t time.Time) {
 
 // Metric returns the metric name of the DataPoint
 func (dp *DataPoint) Metric() string {
+	// TODO: is there any need to mutex this, since strings are
+	// immutable and thus it will never be corrupted?
 	dp.lock()
 	defer dp.unlock()
 
@@ -126,7 +131,7 @@ func (dp *DataPoint) Type() sfxproto.MetricType {
 
 // Dimensions returns a copy of the dimensions of the DataPoint. Changes are not
 // reflected inside the DataPoint itself.
-func (dp *DataPoint) Dimensions() sfxproto.Dimensions {
+func (dp *DataPoint) Dimensions() map[string]string {
 	dp.lock()
 	defer dp.unlock()
 
@@ -157,7 +162,7 @@ func (dp *DataPoint) SetDimension(key, value string) {
 }
 
 // SetDimensions adds or overwrites multiple dimensions
-func (dp *DataPoint) SetDimensions(dims sfxproto.Dimensions) {
+func (dp *DataPoint) SetDimensions(dims map[string]string) {
 	for key, value := range dims {
 		dp.SetDimension(key, value)
 	}
@@ -228,6 +233,7 @@ func (dp *DataPoint) Set(val interface{}) error {
 	dp.lock()
 	defer dp.unlock()
 
+	dp.previous = dp.pdp.Clone()
 	dp.pdp.Value.Reset()
 	dp.get = nil
 
@@ -263,17 +269,17 @@ func (dp *DataPoint) Set(val interface{}) error {
 }
 
 // NewCumulative returns a new DataPoint set to type CUMULATIVE_COUNTER
-func NewCumulative(metric string, val interface{}, dims sfxproto.Dimensions) (*DataPoint, error) {
+func NewCumulative(metric string, val interface{}, dims map[string]string) (*DataPoint, error) {
 	return NewDataPoint(sfxproto.MetricType_CUMULATIVE_COUNTER, metric, val, dims)
 }
 
 // NewGauge returns a new DataPoint set to type GAUGE
-func NewGauge(metric string, val interface{}, dims sfxproto.Dimensions) (*DataPoint, error) {
+func NewGauge(metric string, val interface{}, dims map[string]string) (*DataPoint, error) {
 	return NewDataPoint(sfxproto.MetricType_GAUGE, metric, val, dims)
 }
 
 // NewCounter returns a new DataPoint set to type COUNTER
-func NewCounter(metric string, val interface{}, dims sfxproto.Dimensions) (*DataPoint, error) {
+func NewCounter(metric string, val interface{}, dims map[string]string) (*DataPoint, error) {
 	return NewDataPoint(sfxproto.MetricType_COUNTER, metric, val, dims)
 }
 

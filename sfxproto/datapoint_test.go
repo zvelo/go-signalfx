@@ -8,8 +8,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestProtoDataPoint(t *testing.T) {
-	pdp := &ProtoDataPoint{
+func TestDataPoint(t *testing.T) {
+	p := &DataPoint{
 		Metric: proto.String("TestMetric"),
 		Value: &Datum{
 			IntValue: proto.Int64(99),
@@ -24,21 +24,21 @@ func TestProtoDataPoint(t *testing.T) {
 	Convey("Testing ProtoDataPoint", t, func() {
 		now := time.Now()
 
-		So(now.Before(pdp.Time()), ShouldBeTrue)
+		So(now.Before(p.Time()), ShouldBeTrue)
 
-		pdp.SetTime(now)
+		p.SetTime(now)
 
 		// intentially switch to ms resolution
 		now = time.Unix(0, now.UnixNano()/int64(time.Millisecond)*int64(time.Millisecond))
 
-		So(pdp.Time().Equal(now), ShouldBeTrue)
+		So(p.Time().Equal(now), ShouldBeTrue)
 
-		So(pdp.String(), ShouldEqual, "DP[TestMetric\t[key:\"dim0\" value:\"val0\"  key:\"dim1\" value:\"val1\" ]\tintValue:99 \t1\t"+now.String()+"]")
+		So(p.String(), ShouldEqual, "DP[TestMetric\t[key:\"dim0\" value:\"val0\"  key:\"dim1\" value:\"val1\" ]\tintValue:99 \t1\t"+now.String()+"]")
 
-		clone := pdp.Clone()
-		So(pdp, ShouldNotEqual, clone)
-		So(proto.Equal(pdp, clone), ShouldBeTrue)
-		So(pdp.Equal(clone), ShouldBeTrue)
-		So(clone.Equal(pdp), ShouldBeTrue)
+		clone := p.Clone()
+		So(p, ShouldNotEqual, clone)
+		So(proto.Equal(p, clone), ShouldBeTrue)
+		So(p.Equal(clone), ShouldBeTrue)
+		So(clone.Equal(p), ShouldBeTrue)
 	})
 }

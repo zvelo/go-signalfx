@@ -5,13 +5,12 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
 )
 
 func TestBucket(t *testing.T) {
 	Convey("Testing Bucket", t, func() {
-		b := NewBucket("test", sfxproto.Dimensions{"c": "3"})
+		b := NewBucket("test", map[string]string{"c": "3"})
 		So(b, ShouldNotBeNil)
 		So(b.DataPoints(nil).Len(), ShouldEqual, 3)
 
@@ -22,45 +21,45 @@ func TestBucket(t *testing.T) {
 		})
 
 		Convey("dimension operations should work", func() {
-			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{"c": "3"})
+			So(b.Dimensions(), ShouldResemble, map[string]string{"c": "3"})
 
 			b.SetDimension("a", "")
-			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{
+			So(b.Dimensions(), ShouldResemble, map[string]string{
 				"c": "3",
 			})
 
 			b.SetDimension("", "1")
-			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{
+			So(b.Dimensions(), ShouldResemble, map[string]string{
 				"c": "3",
 			})
 
 			b.SetDimension("", "")
-			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{
+			So(b.Dimensions(), ShouldResemble, map[string]string{
 				"c": "3",
 			})
 
 			b.SetDimension("a", "1")
-			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{
+			So(b.Dimensions(), ShouldResemble, map[string]string{
 				"a": "1",
 				"c": "3",
 			})
 
-			dims := sfxproto.Dimensions{"b": "2"}
+			dims := map[string]string{"b": "2"}
 			b.SetDimensions(dims)
-			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{
+			So(b.Dimensions(), ShouldResemble, map[string]string{
 				"a": "1",
 				"b": "2",
 				"c": "3",
 			})
 
 			b.RemoveDimension("c")
-			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{
+			So(b.Dimensions(), ShouldResemble, map[string]string{
 				"a": "1",
 				"b": "2",
 			})
 
 			b.RemoveDimension("a", "b")
-			So(b.Dimensions(), ShouldResemble, sfxproto.Dimensions{})
+			So(b.Dimensions(), ShouldResemble, map[string]string{})
 		})
 
 		Convey("Clone/Equal should work correctly", func() {
@@ -96,7 +95,7 @@ func TestBucket(t *testing.T) {
 			So(c.Equal(b), ShouldBeFalse)
 			So(b.Equal(c), ShouldBeFalse)
 
-			c.dimensions = sfxproto.Dimensions{}
+			c.dimensions = map[string]string{}
 			So(c.Equal(b), ShouldBeFalse)
 			So(b.Equal(c), ShouldBeFalse)
 		})
@@ -120,18 +119,18 @@ func TestBucket(t *testing.T) {
 			So(b.Min(), ShouldEqual, 0)
 
 			b.Add(1)
-			So(b.DataPoints(sfxproto.Dimensions{"a": "b"}).Len(), ShouldEqual, 5)
+			So(b.DataPoints(map[string]string{"a": "b"}).Len(), ShouldEqual, 5)
 		})
 	})
 }
 
 func ExampleBucket() {
-	reporter := NewReporter(NewConfig(), sfxproto.Dimensions{
+	reporter := NewReporter(NewConfig(), map[string]string{
 		"test_dimension0": "value0",
 		"test_dimension1": "value1",
 	})
 
-	bucket := reporter.NewBucket("TestBucket", sfxproto.Dimensions{
+	bucket := reporter.NewBucket("TestBucket", map[string]string{
 		"test_bucket_dimension0": "bucket0",
 		"test_bucket_dimension1": "bucket1",
 	})
@@ -147,8 +146,11 @@ func ExampleBucket() {
 	fmt.Printf("SumOfSquares: %d\n", bucket.SumOfSquares())
 
 	dps, err := reporter.Report(context.Background())
-
-	fmt.Printf("Error: %v\nDataPoints: %d", err, dps.Len())
+	if err != nil {
+		fmt.Println("Error:", err)
+	} else {
+		fmt.Println("DataPoints:", dps.Len())
+	}
 
 	// Output:
 	// Metric: TestBucket
@@ -157,6 +159,5 @@ func ExampleBucket() {
 	// Max: 9
 	// Sum: 14
 	// SumOfSquares: 106
-	// Error: <nil>
 	// DataPoints: 5
 }
