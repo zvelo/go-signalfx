@@ -363,6 +363,38 @@ func (r *Reporter) Inc(metric string, dimensions map[string]string, delta int64)
 	return nil
 }
 
+func (r *Reporter) Record(metric string, dimensions map[string]string, value int64) error {
+	r.lock()
+	defer r.unlock()
+
+	var protoDims []*sfxproto.Dimension
+	for k, v := range r.defaultDimensions {
+		// have to copy the values, since these are stored as
+		// pointers…
+		var dk, dv string
+		dk = k
+		dv = v
+		protoDims = append(protoDims, &sfxproto.Dimension{Key: &dk, Value: &dv})
+	}
+	for k, v := range dimensions {
+		var dk, dv string
+		dk = k
+		dv = v
+		protoDims = append(protoDims, &sfxproto.Dimension{Key: &dk, Value: &dv})
+	}
+	timestamp := time.Now().UnixNano() / 1000000
+	metricType := sfxproto.MetricType_GAUGE
+	dp := &sfxproto.DataPoint{
+		Metric:     &metric,
+		Timestamp:  &timestamp,
+		MetricType: &metricType,
+		Dimensions: protoDims,
+		Value:      &sfxproto.Datum{IntValue: &value},
+	}
+	r.oneShots = append(r.oneShots, dp)
+	return nil
+}
+
 // RunInBackground starts a goroutine which calls Reporter.Report on
 // the specified interval.  It returns a function which may be used to
 // cancel the backgrounding.
