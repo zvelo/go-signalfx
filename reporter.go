@@ -374,7 +374,7 @@ func (r *Reporter) RunInBackground(interval time.Duration) (cancel func()) {
 			select {
 			case <-ticker.C:
 				_, err := r.Report(context.Background())
-				if err != nil {
+				if err != nil && err != sfxproto.ErrMarshalNoData {
 					log.Error(err)
 				}
 			case <-done:
