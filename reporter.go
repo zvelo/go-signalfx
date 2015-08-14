@@ -25,6 +25,7 @@ type Reporter struct {
 	datapointCallbacks []DataPointCallback
 	mu                 sync.Mutex
 	oneShots           []*sfxproto.DataPoint
+	metricPrefix       string
 }
 
 // NewReporter returns a new Reporter object. Any dimensions supplied will be
@@ -40,6 +41,37 @@ func NewReporter(config *Config,
 	}
 }
 
+// SetPrefix sets a particular prefix for all metrics reported by this
+// reporter.
+func (r *Reporter) SetPrefix(prefix string) {
+	r.lock()
+	defer r.unlock()
+
+	oldPrefix := r.metricPrefix
+	r.metricPrefix = prefix
+	newDims := make(map[string]string, len(r.defaultDimensions))
+	if oldPrefix != "" {
+		for k, v := range r.defaultDimensions {
+			newKey := prefix + k[len(oldPrefix):len(k)]
+			newDims[newKey] = v
+		}
+	} else {
+		for k, v := range r.defaultDimensions {
+			newKey := prefix + k
+			newDims[newKey] = v
+		}
+	}
+	r.defaultDimensions = newDims
+}
+
+func (r *Reporter) prefixDimensions(dims map[string]string) map[string]string {
+	ret := make(map[string]string, len(dims))
+	for k, v := range dims {
+		ret[r.metricPrefix+k] = v
+	}
+	return ret
+}
+
 func (r *Reporter) lock() {
 	r.mu.Lock()
 }
@@ -51,7 +83,7 @@ func (r *Reporter) unlock() {
 // NewBucket creates a new Bucket object that is tracked by the Reporter.
 // Buckets are goroutine safe.
 func (r *Reporter) NewBucket(metric string, dimensions map[string]string) *Bucket {
-	ret := NewBucket(metric, dimensions)
+	ret := NewBucket(metric, r.prefixDimensions(dimensions))
 
 	r.lock()
 	defer r.unlock()
@@ -67,7 +99,7 @@ func (r *Reporter) NewBucket(metric string, dimensions map[string]string) *Bucke
 // atomically, when in a Reporter, except within a PreReportCallback, for
 // goroutine safety.
 func (r *Reporter) NewCumulative(metric string, val interface{}, dims map[string]string) *DataPoint {
-	dp, _ := NewCumulative(metric, val, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
+	dp, _ := NewCumulative(metric, val, sfxproto.Dimensions(r.defaultDimensions).Append(r.prefixDimensions(dims)))
 	r.datapoints.Add(dp)
 	return dp
 }
@@ -78,7 +110,7 @@ func (r *Reporter) NewCumulative(metric string, val interface{}, dims map[string
 // pointer types should not have their value changed, unless atomically, when in
 // a Reporter, except within a PreReportCallback, for goroutine safety.
 func (r *Reporter) NewGauge(metric string, val interface{}, dims map[string]string) *DataPoint {
-	dp, _ := NewGauge(metric, val, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
+	dp, _ := NewGauge(metric, val, sfxproto.Dimensions(r.defaultDimensions).Append(r.prefixDimensions(dims)))
 	r.datapoints.Add(dp)
 	return dp
 }
@@ -90,7 +122,7 @@ func (r *Reporter) NewGauge(metric string, val interface{}, dims map[string]stri
 // atomically, when in a Reporter, except within a PreReportCallback, for
 // goroutine safety.
 func (r *Reporter) NewCounter(metric string, val interface{}, dims map[string]string) *DataPoint {
-	dp, _ := NewCounter(metric, val, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
+	dp, _ := NewCounter(metric, val, sfxproto.Dimensions(r.defaultDimensions).Append(r.prefixDimensions(dims)))
 	r.datapoints.Add(dp)
 	return dp
 }
@@ -100,7 +132,7 @@ func (r *Reporter) NewCounter(metric string, val interface{}, dims map[string]st
 // modified in atomic operations as an int32.
 func (r *Reporter) NewInt32(metric string, dims map[string]string) (*Int32, *DataPoint) {
 	ret := Int32(0)
-	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
+	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(r.prefixDimensions(dims)))
 	if dp == nil {
 		return nil, nil
 	}
@@ -113,7 +145,7 @@ func (r *Reporter) NewInt32(metric string, dims map[string]string) (*Int32, *Dat
 // goroutine safe and it may also be modified in atomic operations as an int32.
 func (r *Reporter) NewCumulativeInt32(metric string, dims map[string]string) (*Int32, *DataPoint) {
 	ret := Int32(0)
-	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
+	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(r.prefixDimensions(dims)))
 	if dp == nil {
 		return nil, nil
 	}
@@ -126,7 +158,7 @@ func (r *Reporter) NewCumulativeInt32(metric string, dims map[string]string) (*I
 // modified in atomic operations as an int64.
 func (r *Reporter) NewInt64(metric string, dims map[string]string) (*Int64, *DataPoint) {
 	ret := Int64(0)
-	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
+	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(r.prefixDimensions(dims)))
 	if dp == nil {
 		return nil, nil
 	}
@@ -139,7 +171,7 @@ func (r *Reporter) NewInt64(metric string, dims map[string]string) (*Int64, *Dat
 // goroutine safe and it may also be modified in atomic operations as an int64.
 func (r *Reporter) NewCumulativeInt64(metric string, dims map[string]string) (*Int64, *DataPoint) {
 	ret := Int64(0)
-	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
+	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(r.prefixDimensions(dims)))
 	if dp == nil {
 		return nil, nil
 	}
@@ -152,7 +184,7 @@ func (r *Reporter) NewCumulativeInt64(metric string, dims map[string]string) (*I
 // be modified in atomic operations as an uint32.
 func (r *Reporter) NewUint32(metric string, dims map[string]string) (*Uint32, *DataPoint) {
 	ret := Uint32(0)
-	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
+	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(r.prefixDimensions(dims)))
 	if dp == nil {
 		return nil, nil
 	}
@@ -166,7 +198,7 @@ func (r *Reporter) NewUint32(metric string, dims map[string]string) (*Uint32, *D
 // uint32.
 func (r *Reporter) NewCumulativeUint32(metric string, dims map[string]string) (*Uint32, *DataPoint) {
 	ret := Uint32(0)
-	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
+	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(r.prefixDimensions(dims)))
 	if dp == nil {
 		return nil, nil
 	}
@@ -179,7 +211,7 @@ func (r *Reporter) NewCumulativeUint32(metric string, dims map[string]string) (*
 // modified in atomic operations as an uint64.
 func (r *Reporter) NewUint64(metric string, dims map[string]string) (*Uint64, *DataPoint) {
 	ret := Uint64(0)
-	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
+	dp, _ := NewCounter(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(r.prefixDimensions(dims)))
 	if dp == nil {
 		return nil, nil
 	}
@@ -192,7 +224,7 @@ func (r *Reporter) NewUint64(metric string, dims map[string]string) (*Uint64, *D
 // goroutine safe and it may also be modified in atomic operations as an uint64.
 func (r *Reporter) NewCumulativeUint64(metric string, dims map[string]string) (*Uint64, *DataPoint) {
 	ret := Uint64(0)
-	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(dims))
+	dp, _ := NewCumulative(metric, &ret, sfxproto.Dimensions(r.defaultDimensions).Append(r.prefixDimensions(dims)))
 	if dp == nil {
 		return nil, nil
 	}
@@ -346,7 +378,7 @@ func (r *Reporter) Inc(metric string, dimensions map[string]string, delta int64)
 	}
 	for k, v := range dimensions {
 		var dk, dv string
-		dk = k
+		dk = r.metricPrefix + k
 		dv = v
 		protoDims = append(protoDims, &sfxproto.Dimension{Key: &dk, Value: &dv})
 	}
@@ -378,7 +410,7 @@ func (r *Reporter) Record(metric string, dimensions map[string]string, value int
 	}
 	for k, v := range dimensions {
 		var dk, dv string
-		dk = k
+		dk = r.metricPrefix + k
 		dv = v
 		protoDims = append(protoDims, &sfxproto.Dimension{Key: &dk, Value: &dv})
 	}
