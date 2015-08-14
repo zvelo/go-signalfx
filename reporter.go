@@ -1,7 +1,6 @@
 package signalfx
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -50,21 +49,19 @@ func (r *Reporter) SetPrefix(prefix string) {
 
 	oldPrefix := r.metricPrefix
 	r.metricPrefix = prefix
+	newDims := make(map[string]string, len(r.defaultDimensions))
 	if oldPrefix != "" {
 		for k, v := range r.defaultDimensions {
 			newKey := prefix + k[len(oldPrefix):len(k)]
-			fmt.Println("newKey", newKey)
-			r.defaultDimensions[newKey] = v
-			delete(r.defaultDimensions, k)
+			newDims[newKey] = v
 		}
 	} else {
 		for k, v := range r.defaultDimensions {
 			newKey := prefix + k
-			fmt.Println("+newKey", newKey)
-			r.defaultDimensions[newKey] = v
-			delete(r.defaultDimensions, k)
+			newDims[newKey] = v
 		}
 	}
+	r.defaultDimensions = newDims
 }
 
 func (r *Reporter) prefixDimensions(dims map[string]string) map[string]string {
