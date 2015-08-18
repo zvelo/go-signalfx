@@ -3,6 +3,7 @@
   * Start bug "Support _metric_ prefix, not _dimension_ prefix"
   https://github.com/zvelo/go-signalfx/issues/6
   https://www.pivotaltracker.com/story/show/101513544
+  https://github.com/zvelo/go-signalfx/pull/6
 
 2015-07-29  Bob Uhl <buhl@zvelo.com>
 
