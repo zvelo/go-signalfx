@@ -25,6 +25,7 @@ func main() {
 		"process":  "ad-hoc",
 		"hostname": hostname,
 	})
+	reporter.SetPrefix("example-")
 
 	// a gauge is a point-in-time value; it can positive or negative
 	gaugeWalker := newRandomWalker(0, 256)
