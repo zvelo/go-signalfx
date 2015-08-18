@@ -1,3 +1,9 @@
+2015-08-18  Bob Uhl <buhl@zvelo.com>
+
+  * Start bug "Support _metric_ prefix, not _dimension_ prefix"
+  https://github.com/zvelo/go-signalfx/issues/6
+  https://www.pivotaltracker.com/story/show/101513544
+
 2015-07-29  Bob Uhl <buhl@zvelo.com>
 
   * Start feature "Example code for using signalfx"
