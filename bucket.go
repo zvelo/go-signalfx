@@ -309,7 +309,7 @@ func (b *Bucket) MaxDataPoint(defaultDims map[string]string) *DataPoint {
 // important that the caller ensures its state does not change for the duration
 // of the operation.
 func (b *Bucket) DataPoints(defaultDims map[string]string) *DataPoints {
-	dp := NewDataPoints(0)
+	dp := NewDataPoints(5)
 	if !b.disabledMetrics[BucketMetricMin] {
 		dp = dp.Add(b.MinDataPoint(defaultDims))
 	}
