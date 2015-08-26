@@ -58,7 +58,7 @@ func (b *Bucket) Clone() *Bucket {
 		max:             b.Max(),
 		sum:             b.Sum(),
 		sumOfSquares:    b.SumOfSquares(),
-		DisabledMetrics: make(map[int]bool, 0),
+		DisabledMetrics: b.DisabledMetrics,
 	}
 }
 
@@ -201,10 +201,11 @@ func (b *Bucket) SumOfSquares() int64 {
 // not change for the duration of the operation.
 func NewBucket(metric string, dimensions map[string]string) *Bucket {
 	return &Bucket{
-		metric:     metric,
-		dimensions: sfxproto.Dimensions(dimensions).Clone(),
-		min:        math.MaxInt64,
-		max:        math.MinInt64,
+		metric:          metric,
+		dimensions:      sfxproto.Dimensions(dimensions).Clone(),
+		min:             math.MaxInt64,
+		max:             math.MinInt64,
+		DisabledMetrics: make(map[int]bool, 0),
 	}
 }
 
