@@ -121,6 +121,17 @@ func TestBucket(t *testing.T) {
 			b.Add(1)
 			So(b.DataPoints(map[string]string{"a": "b"}).Len(), ShouldEqual, 5)
 		})
+
+		Convey("disabling datapoints should work", func() {
+			b.Disable(BucketMetricCount)
+
+			b.Add(1)
+			b.Add(2)
+			b.Add(3)
+
+			So(b.Count(), ShouldEqual, 3)
+			So(b.DataPoints(map[string]string{"a": "b"}).Len(), ShouldEqual, 4)
+		})
 	})
 }
 
