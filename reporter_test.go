@@ -44,57 +44,50 @@ func TestReporter(t *testing.T) {
 			So(reporter.datapoints.Len(), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			cumulative := reporter.NewCumulative("cumulative", Value(0), nil)
-			So(cumulative, ShouldNotBeNil)
-			So(reporter.datapoints.Len(), ShouldEqual, 1)
+			cumulative := &CumulativeCounter{Metric: "cumulative"}
+			reporter.Track(cumulative)
+			So(len(reporter.metrics), ShouldEqual, 1)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			gauge := reporter.NewGauge("gauge", Value(0), nil)
-			So(gauge, ShouldNotBeNil)
-			So(reporter.datapoints.Len(), ShouldEqual, 2)
+			gauge := &Gauge{Metric: "gauge"}
+			reporter.Track(gauge)
+			So(len(reporter.metrics), ShouldEqual, 2)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			counter := reporter.NewCounter("counter", Value(0), nil)
+			counter := &Counter{Metric: "counter"}
+			reporter.Track(counter)
 			So(counter, ShouldNotBeNil)
-			So(reporter.datapoints.Len(), ShouldEqual, 3)
+			So(len(reporter.metrics), ShouldEqual, 3)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
 			// removing datapoints
 
-			reporter.RemoveDataPoint(cumulative)
-			So(reporter.datapoints.Len(), ShouldEqual, 2)
+			reporter.Untrack(cumulative)
+			So(len(reporter.metrics), ShouldEqual, 2)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			reporter.RemoveDataPoint(cumulative)
-			So(reporter.datapoints.Len(), ShouldEqual, 2)
+			reporter.Untrack(cumulative)
+			So(len(reporter.metrics), ShouldEqual, 2)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			reporter.RemoveDataPoint(gauge, counter)
-			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			reporter.Untrack(gauge, counter)
+			So(len(reporter.metrics), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			reporter.AddDataPoint(gauge)
-			So(reporter.datapoints.Len(), ShouldEqual, 1)
+			reporter.Track(gauge)
+			So(len(reporter.metrics), ShouldEqual, 1)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			reporter.AddDataPoint(cumulative, counter, gauge)
-			So(reporter.datapoints.Len(), ShouldEqual, 3)
+			reporter.Track(cumulative, counter, gauge)
+			So(len(reporter.metrics), ShouldEqual, 3)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			datapoints := NewDataPoints(3)
-			datapoints.Add(cumulative, gauge, counter)
-			So(datapoints.Len(), ShouldEqual, 3)
-
-			reporter.RemoveDataPoints(datapoints)
-			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			reporter.Untrack(counter, gauge, cumulative)
+			So(len(reporter.metrics), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
 			reporter.RemoveBucket(bucket)
-			So(reporter.datapoints.Len(), ShouldEqual, 0)
-			So(len(reporter.buckets), ShouldEqual, 0)
-
-			reporter.AddDataPoints(datapoints)
-			So(reporter.datapoints.Len(), ShouldEqual, 3)
+			So(len(reporter.metrics), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 0)
 		})
 

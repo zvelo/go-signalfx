@@ -10,7 +10,7 @@ import (
 )
 
 type Metric interface {
-	dataPoint(*Reporter) *sfxproto.DataPoint
+	dataPoint(string, []*sfxproto.Dimension) *sfxproto.DataPoint
 }
 
 type HookedMetric interface {
@@ -48,6 +48,7 @@ func NewReporter(config *Config,
 		defaultDimensions: defaultDimensions,
 		datapoints:        NewDataPoints(0),
 		buckets:           map[*Bucket]interface{}{},
+		metrics:           map[Metric]struct{}{},
 	}
 }
 
@@ -68,14 +69,26 @@ func (r *Reporter) unlock() {
 	r.mu.Unlock()
 }
 
-// TrackMetric adds a Metric to a Reporter's set of tracked Metrics.
-// Its value will be reported once each time Report is called.
-func (r *Reporter) TrackMetric(m Metric) {
+// Track adds a Metric to a Reporter's set of tracked Metrics.  Its
+// value will be reported once each time Report is called.
+func (r *Reporter) Track(m ...Metric) {
 	r.lock()
 	defer r.unlock()
 
-	r.metrics[m] = struct{}{}
+	for _, m := range m {
+		r.metrics[m] = struct{}{}
+	}
 	return
+}
+
+// Untrack removes a Metric from a Reporter's set of tracked Metrics.
+func (r *Reporter) Untrack(m ...Metric) {
+	r.lock()
+	defer r.unlock()
+
+	for _, m := range m {
+		delete(r.metrics, m)
+	}
 }
 
 // NewBucket creates a new Bucket object that is tracked by the Reporter.
@@ -292,6 +305,16 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 	r.lock()
 	defer r.unlock()
 
+	dimensions := make([]*sfxproto.Dimension, 0, len(r.defaultDimensions))
+	for k, v := range r.defaultDimensions {
+		// have to copy the values, since these are stored as
+		// pointers…
+		var dk, dv string
+		dk = k
+		dv = v
+		dimensions = append(dimensions, &sfxproto.Dimension{Key: &dk, Value: &dv})
+	}
+
 	for _, f := range r.preReportCallbacks {
 		f()
 	}
@@ -348,7 +371,10 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 	}, 0)
 	// append all of the tracked metrics
 	for metric := range r.metrics {
-		dp := metric.dataPoint(r)
+		dp := metric.dataPoint(r.metricPrefix, dimensions)
+		if dp == nil {
+			continue
+		}
 		pdps.Add(dp)
 		if m, ok := metric.(HookedMetric); ok {
 			rm := struct {
