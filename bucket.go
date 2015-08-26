@@ -311,19 +311,19 @@ func (b *Bucket) MaxDataPoint(defaultDims map[string]string) *DataPoint {
 // of the operation.
 func (b *Bucket) DataPoints(defaultDims map[string]string) *DataPoints {
 	dp := NewDataPoints(0)
-	if disabled := b.DisabledMetrics[BucketMetricCount]; !disabled {
+	if !b.DisabledMetrics[BucketMetricCount] {
 		dp = dp.Add(b.CountDataPoint(defaultDims))
 	}
-	if disabled := b.DisabledMetrics[BucketMetricSum]; !disabled {
+	if !b.DisabledMetrics[BucketMetricSum] {
 		dp = dp.Add(b.SumDataPoint(defaultDims))
 	}
-	if disabled := b.DisabledMetrics[BucketMetricMin]; !disabled {
+	if !b.DisabledMetrics[BucketMetricMin] {
 		dp = dp.Add(b.MinDataPoint(defaultDims))
 	}
-	if disabled := b.DisabledMetrics[BucketMetricMax]; !disabled {
+	if !b.DisabledMetrics[BucketMetricMax] {
 		dp = dp.Add(b.MaxDataPoint(defaultDims))
 	}
-	if disabled := b.DisabledMetrics[BucketMetricSumOfSquares]; !disabled {
+	if !b.DisabledMetrics[BucketMetricSumOfSquares] {
 		dp = dp.Add(b.SumOfSquaresDataPoint(defaultDims))
 	}
 
