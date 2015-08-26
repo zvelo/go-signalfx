@@ -24,16 +24,15 @@ var (
 // A Bucket trakcs groups of values, reporting metrics as gauges and
 // resetting each time it reports. All operations on Buckets are goroutine safe.
 type Bucket struct {
-	metric       string
-	dimensions   map[string]string
-	count        uint64
-	min          int64
-	max          int64
-	sum          int64
-	sumOfSquares int64
-	mu           sync.Mutex
-
-	DisabledMetrics map[int]bool
+	metric          string
+	dimensions      map[string]string
+	count           uint64
+	min             int64
+	max             int64
+	sum             int64
+	sumOfSquares    int64
+	mu              sync.Mutex
+	disabledMetrics map[int]bool
 }
 
 func (b *Bucket) lock() {
@@ -58,7 +57,7 @@ func (b *Bucket) Clone() *Bucket {
 		max:             b.Max(),
 		sum:             b.Sum(),
 		sumOfSquares:    b.SumOfSquares(),
-		DisabledMetrics: b.DisabledMetrics,
+		disabledMetrics: b.disabledMetrics,
 	}
 }
 
@@ -68,7 +67,7 @@ func (b *Bucket) Disable(metrics ...int) {
 	b.lock()
 	defer b.unlock()
 	for _, metric := range metrics {
-		b.DisabledMetrics[metric] = true
+		b.disabledMetrics[metric] = true
 	}
 }
 
@@ -205,7 +204,7 @@ func NewBucket(metric string, dimensions map[string]string) *Bucket {
 		dimensions:      sfxproto.Dimensions(dimensions).Clone(),
 		min:             math.MaxInt64,
 		max:             math.MinInt64,
-		DisabledMetrics: make(map[int]bool, 0),
+		disabledMetrics: make(map[int]bool, 0),
 	}
 }
 
@@ -311,19 +310,19 @@ func (b *Bucket) MaxDataPoint(defaultDims map[string]string) *DataPoint {
 // of the operation.
 func (b *Bucket) DataPoints(defaultDims map[string]string) *DataPoints {
 	dp := NewDataPoints(0)
-	if !b.DisabledMetrics[BucketMetricMin] {
+	if !b.disabledMetrics[BucketMetricMin] {
 		dp = dp.Add(b.MinDataPoint(defaultDims))
 	}
-	if !b.DisabledMetrics[BucketMetricMax] {
+	if !b.disabledMetrics[BucketMetricMax] {
 		dp = dp.Add(b.MaxDataPoint(defaultDims))
 	}
-	if !b.DisabledMetrics[BucketMetricCount] {
+	if !b.disabledMetrics[BucketMetricCount] {
 		dp = dp.Add(b.CountDataPoint(defaultDims))
 	}
-	if !b.DisabledMetrics[BucketMetricSum] {
+	if !b.disabledMetrics[BucketMetricSum] {
 		dp = dp.Add(b.SumDataPoint(defaultDims))
 	}
-	if !b.DisabledMetrics[BucketMetricSumOfSquares] {
+	if !b.disabledMetrics[BucketMetricSumOfSquares] {
 		dp = dp.Add(b.SumOfSquaresDataPoint(defaultDims))
 	}
 
