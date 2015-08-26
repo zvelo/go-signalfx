@@ -9,6 +9,15 @@ import (
 	"golang.org/x/net/context"
 )
 
+type Metric interface {
+	dataPoint(*Reporter) *sfxproto.DataPoint
+}
+
+type HookedMetric interface {
+	Metric
+	PostReportHook(reportedValue int64)
+}
+
 // DataPointCallback is a functional callback that can be passed to
 // DataPointCallback as a way to have the caller calculate and return
 // their own datapoints
@@ -20,6 +29,7 @@ type Reporter struct {
 	client             *Client
 	defaultDimensions  map[string]string
 	datapoints         *DataPoints
+	metrics            map[Metric]struct{}
 	buckets            map[*Bucket]interface{}
 	preReportCallbacks []func()
 	datapointCallbacks []DataPointCallback
@@ -56,6 +66,16 @@ func (r *Reporter) lock() {
 
 func (r *Reporter) unlock() {
 	r.mu.Unlock()
+}
+
+// TrackMetric adds a Metric to a Reporter's set of tracked Metrics.
+// Its value will be reported once each time Report is called.
+func (r *Reporter) TrackMetric(m Metric) {
+	r.lock()
+	defer r.unlock()
+
+	r.metrics[m] = struct{}{}
+	return
 }
 
 // NewBucket creates a new Bucket object that is tracked by the Reporter.
@@ -322,6 +342,26 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 		pdps.Add(pdp)
 	}
 
+	hookedMetrics := make([]struct {
+		m  HookedMetric
+		dp *sfxproto.DataPoint
+	}, 0)
+	// append all of the tracked metrics
+	for metric := range r.metrics {
+		dp := metric.dataPoint(r)
+		pdps.Add(dp)
+		if m, ok := metric.(HookedMetric); ok {
+			rm := struct {
+				m  HookedMetric
+				dp *sfxproto.DataPoint
+			}{
+				m,
+				dp,
+			}
+			hookedMetrics = append(hookedMetrics, rm)
+		}
+	}
+
 	if err := r.client.Submit(ctx, pdps); err != nil {
 		return nil, err
 	}
@@ -334,6 +374,11 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 	// remember submitted cumulative counter values
 	for _, counter := range cumulativeCounters {
 		counter.previous = counter.pdp
+	}
+
+	// reset resettable metrics
+	for _, hm := range hookedMetrics {
+		hm.m.PostReportHook(*hm.dp.Value.IntValue)
 	}
 
 	// and clear the one-shots
