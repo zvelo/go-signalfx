@@ -12,7 +12,6 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
 )
 
@@ -91,8 +90,9 @@ func TestReporter(t *testing.T) {
 			So(len(reporter.buckets), ShouldEqual, 0)
 		})
 
+		// TODO(buhl): address the callbacks issue
 		Convey("callbacks should be fired", func() {
-			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			So(len(reporter.metrics), ShouldEqual, 0)
 
 			cb := 0
 			addDataPointF := func(dims map[string]string) *DataPoints {
@@ -126,7 +126,7 @@ func TestReporter(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(dps, ShouldNotBeNil)
 			So(dps.Len(), ShouldEqual, 2)
-			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			So(len(reporter.metrics), ShouldEqual, 0)
 			So(cb, ShouldEqual, 3)
 		})
 
@@ -139,23 +139,34 @@ func TestReporter(t *testing.T) {
 		})
 
 		Convey("a blanked counter shouldn't report", func() {
-			counter := reporter.NewCounter("foo", Value(0), nil)
-			_ = counter
-			_, err := reporter.Report(context.Background())
-			So(err, ShouldEqual, sfxproto.ErrMarshalNoData)
+			counter := &Counter{Metric: "foo"}
+			reporter.Track(counter)
+			dp, err := reporter.Report(context.Background())
+			So(dp.Len(), ShouldBeZeroValue)
+			So(err, ShouldBeNil)
+		})
+		Convey("but a counter with a value should", func() {
+			counter := &Counter{Metric: "foo"}
+			reporter.Track(counter)
+			counter.Inc(1)
+			dp, err := reporter.Report(context.Background())
+			So(dp.Len(), ShouldBeZeroValue)
+			So(err, ShouldBeNil)
 		})
 
 		Convey("a cumulative counter shouldn't report the same value", func() {
-			counter := reporter.NewCumulative("foo", Value(0), nil)
+			counter := &CumulativeCounter{Metric: "foo"}
+			reporter.Track(counter)
 			_, err := reporter.Report(context.Background())
-			So(err, ShouldEqual, sfxproto.ErrMarshalNoData)
-			counter.Set(1)
+			So(err, ShouldEqual, nil)
+			counter.Inc(1)
 			_, err = reporter.Report(context.Background())
 			So(err, ShouldBeNil)
 			// since it didn't change, it shouldn't report
-			_, err = reporter.Report(context.Background())
-			So(err, ShouldEqual, sfxproto.ErrMarshalNoData)
-			counter.Set(2)
+			dps, err := reporter.Report(context.Background())
+			So(err, ShouldBeNil)
+			So(dps, ShouldBeNil)
+			counter.Inc(1)
 			_, err = reporter.Report(context.Background())
 			So(err, ShouldBeNil)
 		})
@@ -186,9 +197,8 @@ func TestReporter(t *testing.T) {
 
 		Convey("no metrics", func() {
 			dps, err := reporter.Report(context.Background())
-			So(err, ShouldNotBeNil)
+			So(err, ShouldBeNil)
 			So(dps, ShouldBeNil)
-			So(err.Error(), ShouldEqual, "no data to marshal")
 		})
 
 		Convey("report should fail with a bad url", func() {
@@ -238,8 +248,9 @@ func TestReporter(t *testing.T) {
 			ccopy.URL = "z" + ts.URL
 			tmpR := NewReporter(ccopy, nil)
 
-			// when adding the getter, its value is taken, and that has to not
-			// return an error. then after that first Get, it should return an
+			// when adding the getter, its value is taken,
+			// and that has to not return an error. then
+			// after that first Get, it should return an
 			// error for this test to work
 			i := 0
 			f := GetterFunc(func() (interface{}, error) {
@@ -256,263 +267,421 @@ func TestReporter(t *testing.T) {
 			So(dp, ShouldNotBeNil)
 			dps, err := tmpR.Report(context.Background())
 			So(dps, ShouldBeNil)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "no data to marshal")
+			So(err, ShouldBeNil)
 		})
 
 		Convey("Getters should work", func() {
-			i32, dpi32 := reporter.NewInt32("Int32", nil)
-			ci32, dpci32 := reporter.NewCumulativeInt32("CumulativeInt32", nil)
-			i64, dpi64 := reporter.NewInt64("Int64", nil)
-			ci64, dpci64 := reporter.NewCumulativeInt64("CumulativeInt64", nil)
-			ui32, dpui32 := reporter.NewUint32("Uint32", nil)
-			cui32, dpcui32 := reporter.NewCumulativeUint32("CumulativeUint32", nil)
-			ui64, dpui64 := reporter.NewUint64("Uint64", nil)
-			cui64, dpcui64 := reporter.NewCumulativeUint64("CumulativeUint64", nil)
+			i32, ci32 := NewInt32(0), NewInt32(0)
+			i64, ci64 := NewInt64(0), NewInt64(0)
+			ui32, cui32 := NewUint32(0), NewUint32(0)
+			ui64, cui64 := NewUint64(0), NewUint64(0)
 
-			So(reporter.datapoints.Len(), ShouldEqual, 8)
+			mi32 := &SetterCounter{Metric: "Int32", Value: i32}
+			mci32 := &SetterCounter{Metric: "CumulativeInt32", Value: ci32}
+			mi64 := &SetterCounter{Metric: "Int64", Value: i64}
+			mci64 := &SetterCounter{Metric: "CumulativeInt64", Value: ci64}
+			mui32 := &SetterCounter{Metric: "Uint32", Value: ui32}
+			mcui32 := &SetterCounter{Metric: "CumulativeUint32", Value: cui32}
+			mui64 := &SetterCounter{Metric: "Uint64", Value: ui64}
+			mcui64 := &SetterCounter{Metric: "CumulativeUint64", Value: cui64}
+
+			reporter.Track(mi32, mci32, mi64, mci64, mui32, mcui32, mui64, mcui64)
+
+			So(len(reporter.metrics), ShouldEqual, 8)
 			So(len(reporter.buckets), ShouldEqual, 0)
 
 			Convey("Metric names should be required", func() {
 				i32, dpi32 := reporter.NewInt32("", nil)
 				So(i32, ShouldBeNil)
 				So(dpi32, ShouldBeNil)
-				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.metrics), ShouldEqual, 8)
 				So(len(reporter.buckets), ShouldEqual, 0)
 
 				ci32, dpci32 := reporter.NewCumulativeInt32("", nil)
 				So(ci32, ShouldBeNil)
 				So(dpci32, ShouldBeNil)
-				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.metrics), ShouldEqual, 8)
 				So(len(reporter.buckets), ShouldEqual, 0)
 
 				i64, dpi64 := reporter.NewInt64("", nil)
 				So(i64, ShouldBeNil)
 				So(dpi64, ShouldBeNil)
-				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.metrics), ShouldEqual, 8)
 				So(len(reporter.buckets), ShouldEqual, 0)
 
 				ci64, dpci64 := reporter.NewCumulativeInt64("", nil)
 				So(ci64, ShouldBeNil)
 				So(dpci64, ShouldBeNil)
-				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.metrics), ShouldEqual, 8)
 				So(len(reporter.buckets), ShouldEqual, 0)
 
 				ui32, dpui32 := reporter.NewUint32("", nil)
 				So(ui32, ShouldBeNil)
 				So(dpui32, ShouldBeNil)
-				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.metrics), ShouldEqual, 8)
 				So(len(reporter.buckets), ShouldEqual, 0)
 
 				cui32, dpcui32 := reporter.NewCumulativeUint32("", nil)
 				So(cui32, ShouldBeNil)
 				So(dpcui32, ShouldBeNil)
-				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.metrics), ShouldEqual, 8)
 				So(len(reporter.buckets), ShouldEqual, 0)
 
 				ui64, dpui64 := reporter.NewUint64("", nil)
 				So(ui64, ShouldBeNil)
 				So(dpui64, ShouldBeNil)
-				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.metrics), ShouldEqual, 8)
 				So(len(reporter.buckets), ShouldEqual, 0)
 
 				cui64, dpcui64 := reporter.NewCumulativeUint64("", nil)
 				So(cui64, ShouldBeNil)
 				So(dpcui64, ShouldBeNil)
-				So(reporter.datapoints.Len(), ShouldEqual, 8)
+				So(len(reporter.metrics), ShouldEqual, 8)
 				So(len(reporter.buckets), ShouldEqual, 0)
 			})
 
 			Convey("Int32", func() {
 				So(i32, ShouldNotBeNil)
-				So(dpi32, ShouldNotBeNil)
+				So(mi32, ShouldNotBeNil)
 				So(i32.Value(), ShouldEqual, 0)
 				v, err := i32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				So(i32.Value(), ShouldEqual, dpi32.IntValue())
+				dp := mi32.dataPoint()
+				So(i32.Value(), ShouldEqual, dp.Value)
 
 				i32.Set(5)
 				So(i32.Value(), ShouldEqual, 5)
 				v, err = i32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				So(i32.Value(), ShouldEqual, dpi32.IntValue())
+				dp = mi32.dataPoint()
+				So(i32.Value(), ShouldEqual, dp.Value)
 
 				i32.Inc(1)
 				So(i32.Value(), ShouldEqual, 6)
 				v, err = i32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				So(i32.Value(), ShouldEqual, dpi32.IntValue())
+				dp = mi32.dataPoint()
+				So(i32.Value(), ShouldEqual, dp.Value)
+
+				i32.Subtract(1)
+				So(i32.Value(), ShouldEqual, 5)
+				v, err = i32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				dp = mi32.dataPoint()
+				So(i32.Value(), ShouldEqual, dp.Value)
+
+				mi32.reset(3)
+				So(i32.Value(), ShouldEqual, 2)
+				v, err = i32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 2)
+				dp = mi32.dataPoint()
+				So(i32.Value(), ShouldEqual, dp.Value)
 			})
 
 			Convey("CumulativeInt32", func() {
 				So(ci32, ShouldNotBeNil)
-				So(dpci32, ShouldNotBeNil)
+				So(mci32, ShouldNotBeNil)
 				So(ci32.Value(), ShouldEqual, 0)
 				v, err := ci32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				So(ci32.Value(), ShouldEqual, dpci32.IntValue())
+				dp := mci32.dataPoint()
+				So(ci32.Value(), ShouldEqual, dp.Value)
 
 				ci32.Set(5)
 				So(ci32.Value(), ShouldEqual, 5)
 				v, err = ci32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				So(ci32.Value(), ShouldEqual, dpci32.IntValue())
+				dp = mci32.dataPoint()
+				So(ci32.Value(), ShouldEqual, dp.Value)
 
 				ci32.Inc(1)
 				So(ci32.Value(), ShouldEqual, 6)
 				v, err = ci32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				So(ci32.Value(), ShouldEqual, dpci32.IntValue())
+				dp = mci32.dataPoint()
+				So(ci32.Value(), ShouldEqual, dp.Value)
+
+				ci32.Subtract(1)
+				So(ci32.Value(), ShouldEqual, 5)
+				v, err = ci32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				dp = mci32.dataPoint()
+				So(ci32.Value(), ShouldEqual, dp.Value)
+
+				mci32.reset(3)
+				So(ci32.Value(), ShouldEqual, 2)
+				v, err = ci32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 2)
+				dp = mci32.dataPoint()
+				So(ci32.Value(), ShouldEqual, dp.Value)
 			})
 
 			Convey("Int64", func() {
 				So(i64, ShouldNotBeNil)
-				So(dpi64, ShouldNotBeNil)
+				So(mi64, ShouldNotBeNil)
 				So(i64.Value(), ShouldEqual, 0)
 				v, err := i64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				So(i64.Value(), ShouldEqual, dpi64.IntValue())
+				dp := mi64.dataPoint()
+				So(i64.Value(), ShouldEqual, dp.Value)
 
 				i64.Set(5)
 				So(i64.Value(), ShouldEqual, 5)
 				v, err = i64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				So(i64.Value(), ShouldEqual, dpi64.IntValue())
+				dp = mi64.dataPoint()
+				So(i64.Value(), ShouldEqual, dp.Value)
 
 				i64.Inc(1)
 				So(i64.Value(), ShouldEqual, 6)
 				v, err = i64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				So(i64.Value(), ShouldEqual, dpi64.IntValue())
+				dp = mi64.dataPoint()
+				So(i64.Value(), ShouldEqual, dp.Value)
+
+				i64.Subtract(1)
+				So(i64.Value(), ShouldEqual, 5)
+				v, err = i64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				dp = mi64.dataPoint()
+				So(i64.Value(), ShouldEqual, dp.Value)
+
+				mi64.reset(3)
+				So(i64.Value(), ShouldEqual, 2)
+				v, err = i64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 2)
+				dp = mi64.dataPoint()
+				So(i64.Value(), ShouldEqual, dp.Value)
 			})
 
 			Convey("CumulativeInt64", func() {
 				So(ci64, ShouldNotBeNil)
-				So(dpci64, ShouldNotBeNil)
+				So(mci64, ShouldNotBeNil)
 				So(ci64.Value(), ShouldEqual, 0)
 				v, err := ci64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				So(ci64.Value(), ShouldEqual, dpci64.IntValue())
+				dp := mci64.dataPoint()
+				So(ci64.Value(), ShouldEqual, dp.Value)
 
 				ci64.Set(5)
 				So(ci64.Value(), ShouldEqual, 5)
 				v, err = ci64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				So(ci64.Value(), ShouldEqual, dpci64.IntValue())
+				dp = mci64.dataPoint()
+				So(ci64.Value(), ShouldEqual, dp.Value)
 
 				ci64.Inc(1)
 				So(ci64.Value(), ShouldEqual, 6)
 				v, err = ci64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				So(ci64.Value(), ShouldEqual, dpci64.IntValue())
+				dp = mci64.dataPoint()
+				So(ci64.Value(), ShouldEqual, dp.Value)
+
+				ci64.Subtract(1)
+				So(ci64.Value(), ShouldEqual, 5)
+				v, err = ci64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				dp = mci64.dataPoint()
+				So(ci64.Value(), ShouldEqual, dp.Value)
+
+				mci64.reset(3)
+				So(ci64.Value(), ShouldEqual, 2)
+				v, err = ci64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 2)
+				dp = mci64.dataPoint()
+				So(ci64.Value(), ShouldEqual, dp.Value)
 			})
 
 			Convey("Uint32", func() {
 				So(ui32, ShouldNotBeNil)
-				So(dpui32, ShouldNotBeNil)
+				So(mui32, ShouldNotBeNil)
 				So(ui32.Value(), ShouldEqual, 0)
 				v, err := ui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				So(ui32.Value(), ShouldEqual, dpui32.IntValue())
+				dp := mui32.dataPoint()
+				So(ui32.Value(), ShouldEqual, dp.Value)
 
 				ui32.Set(5)
 				So(ui32.Value(), ShouldEqual, 5)
 				v, err = ui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				So(ui32.Value(), ShouldEqual, dpui32.IntValue())
+				dp = mui32.dataPoint()
+				So(ui32.Value(), ShouldEqual, dp.Value)
 
 				ui32.Inc(1)
 				So(ui32.Value(), ShouldEqual, 6)
 				v, err = ui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				So(ui32.Value(), ShouldEqual, dpui32.IntValue())
+				dp = mui32.dataPoint()
+				So(ui32.Value(), ShouldEqual, dp.Value)
+
+				ui32.Subtract(1)
+				So(ui32.Value(), ShouldEqual, 5)
+				v, err = ui32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				dp = mui32.dataPoint()
+				So(ui32.Value(), ShouldEqual, dp.Value)
+
+				mui32.reset(3)
+				So(ui32.Value(), ShouldEqual, 2)
+				v, err = ui32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 2)
+				dp = mui32.dataPoint()
+				So(ui32.Value(), ShouldEqual, dp.Value)
 			})
 
 			Convey("CumulativeUint32", func() {
 				So(cui32, ShouldNotBeNil)
-				So(dpcui32, ShouldNotBeNil)
+				So(mcui32, ShouldNotBeNil)
 				So(cui32.Value(), ShouldEqual, 0)
 				v, err := cui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				So(cui32.Value(), ShouldEqual, dpcui32.IntValue())
+				dp := mcui32.dataPoint()
+				So(cui32.Value(), ShouldEqual, dp.Value)
 
 				cui32.Set(5)
 				So(cui32.Value(), ShouldEqual, 5)
 				v, err = cui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				So(cui32.Value(), ShouldEqual, dpcui32.IntValue())
+				dp = mcui32.dataPoint()
+				So(cui32.Value(), ShouldEqual, dp.Value)
 
 				cui32.Inc(1)
 				So(cui32.Value(), ShouldEqual, 6)
 				v, err = cui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				So(cui32.Value(), ShouldEqual, dpcui32.IntValue())
+				dp = mcui32.dataPoint()
+				So(cui32.Value(), ShouldEqual, dp.Value)
+
+				cui32.Subtract(1)
+				So(cui32.Value(), ShouldEqual, 5)
+				v, err = cui32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				dp = mcui32.dataPoint()
+				So(cui32.Value(), ShouldEqual, dp.Value)
+
+				mcui32.reset(3)
+				So(cui32.Value(), ShouldEqual, 2)
+				v, err = cui32.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 2)
+				dp = mcui32.dataPoint()
+				So(cui32.Value(), ShouldEqual, dp.Value)
 			})
 
 			Convey("Uint64", func() {
 				So(ui64, ShouldNotBeNil)
-				So(dpui64, ShouldNotBeNil)
+				So(mui64, ShouldNotBeNil)
 				So(ui64.Value(), ShouldEqual, 0)
 				v, err := ui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				So(ui64.Value(), ShouldEqual, dpui64.IntValue())
+				dp := mui64.dataPoint()
+				So(ui64.Value(), ShouldEqual, dp.Value)
 
 				ui64.Set(5)
 				So(ui64.Value(), ShouldEqual, 5)
 				v, err = ui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				So(ui64.Value(), ShouldEqual, dpui64.IntValue())
+				dp = mui64.dataPoint()
+				So(ui64.Value(), ShouldEqual, dp.Value)
 
 				ui64.Inc(1)
 				So(ui64.Value(), ShouldEqual, 6)
 				v, err = ui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				So(ui64.Value(), ShouldEqual, dpui64.IntValue())
+				dp = mui64.dataPoint()
+				So(ui64.Value(), ShouldEqual, dp.Value)
+
+				ui64.Subtract(1)
+				So(ui64.Value(), ShouldEqual, 5)
+				v, err = ui64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				dp = mui64.dataPoint()
+				So(ui64.Value(), ShouldEqual, dp.Value)
+
+				mui64.reset(3)
+				So(ui64.Value(), ShouldEqual, 2)
+				v, err = ui64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 2)
+				dp = mui64.dataPoint()
+				So(ui64.Value(), ShouldEqual, dp.Value)
 			})
 
 			Convey("CumulativeUint64", func() {
 				So(cui64, ShouldNotBeNil)
-				So(dpcui64, ShouldNotBeNil)
+				So(mcui64, ShouldNotBeNil)
 				So(cui64.Value(), ShouldEqual, 0)
 				v, err := cui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				So(cui64.Value(), ShouldEqual, dpcui64.IntValue())
+				dp := mcui64.dataPoint()
+				So(cui64.Value(), ShouldEqual, dp.Value)
 
 				cui64.Set(5)
 				So(cui64.Value(), ShouldEqual, 5)
 				v, err = cui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				So(cui64.Value(), ShouldEqual, dpcui64.IntValue())
+				dp = mcui64.dataPoint()
+				So(cui64.Value(), ShouldEqual, dp.Value)
 
 				cui64.Inc(1)
 				So(cui64.Value(), ShouldEqual, 6)
 				v, err = cui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				So(cui64.Value(), ShouldEqual, dpcui64.IntValue())
+				dp = mcui64.dataPoint()
+				So(cui64.Value(), ShouldEqual, dp.Value)
+
+				cui64.Subtract(1)
+				So(cui64.Value(), ShouldEqual, 5)
+				v, err = cui64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 5)
+				dp = mcui64.dataPoint()
+				So(cui64.Value(), ShouldEqual, dp.Value)
+
+				mcui64.reset(3)
+				So(cui64.Value(), ShouldEqual, 2)
+				v, err = cui64.Get()
+				So(err, ShouldBeNil)
+				So(v, ShouldEqual, 2)
+				dp = mcui64.dataPoint()
+				So(cui64.Value(), ShouldEqual, dp.Value)
 			})
 		})
 		Convey("Testing background reporting", func() {

@@ -8,6 +8,11 @@ type Getter interface {
 	Get() (interface{}, error)
 }
 
+type Subtracter interface {
+	Getter
+	Subtract(int64)
+}
+
 // The GetterFunc type is an adapter to allow the use of ordinary functions as
 // DataPoint Getters. If f is a function with the appropriate signature,
 // GetterFunc(f) is a Getter object that calls f. f() must return a value that
@@ -68,6 +73,10 @@ func (v *Int32) Value() int32 {
 	return atomic.LoadInt32((*int32)(v))
 }
 
+func (v *Int32) Subtract(delta int64) {
+	atomic.AddInt32((*int32)(v), int32(-delta))
+}
+
 /************************** Int64 **************************/
 
 // Int64 satisfies the Getter interface using an atomic operation. Therefore it
@@ -99,6 +108,10 @@ func (v *Int64) Inc(delta int64) int64 {
 // Value atomically returns the value of an Int64
 func (v *Int64) Value() int64 {
 	return atomic.LoadInt64((*int64)(v))
+}
+
+func (v *Int64) Subtract(delta int64) {
+	atomic.AddInt64((*int64)(v), -delta)
 }
 
 /************************* Uint32 **************************/
@@ -134,6 +147,11 @@ func (v *Uint32) Value() uint32 {
 	return atomic.LoadUint32((*uint32)(v))
 }
 
+// Subtract atomically subtracts delta from a Uint32
+func (v *Uint32) Subtract(delta int64) {
+	atomic.AddUint32((*uint32)(v), uint32(-delta))
+}
+
 /************************* Uint64 **************************/
 
 // Uint64 satisfies the Getter interface using an atomic operation. Therefore it
@@ -165,4 +183,9 @@ func (v *Uint64) Inc(delta uint64) uint64 {
 // Value atomically returns the value of a Uint64
 func (v *Uint64) Value() uint64 {
 	return atomic.LoadUint64((*uint64)(v))
+}
+
+// Subtract atomically subtracts delta from a Uint32
+func (v *Uint64) Subtract(delta int64) {
+	atomic.AddUint64((*uint64)(v), uint64(-delta))
 }

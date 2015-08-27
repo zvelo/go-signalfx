@@ -10,7 +10,10 @@ import (
 )
 
 type Metric interface {
-	dataPoint(string, []*sfxproto.Dimension) *sfxproto.DataPoint
+	// dataPoint returns the value of the metric at the current
+	// point in time.  If it has no value at the present point in
+	// time, return nil
+	dataPoint() *dataPoint
 }
 
 type HookedMetric interface {
@@ -366,26 +369,31 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 	}
 
 	hookedMetrics := make([]struct {
-		m  HookedMetric
-		dp *sfxproto.DataPoint
+		m HookedMetric
+		v int64
 	}, 0)
 	// append all of the tracked metrics
 	for metric := range r.metrics {
-		dp := metric.dataPoint(r.metricPrefix, dimensions)
+		dp := metric.dataPoint()
 		if dp == nil {
 			continue
 		}
-		pdps.Add(dp)
+		pdp := dp.protoDataPoint(r.metricPrefix, dimensions)
+		pdps.Add(pdp)
 		if m, ok := metric.(HookedMetric); ok {
 			rm := struct {
-				m  HookedMetric
-				dp *sfxproto.DataPoint
+				m HookedMetric
+				v int64
 			}{
 				m,
-				dp,
+				dp.Value,
 			}
 			hookedMetrics = append(hookedMetrics, rm)
 		}
+	}
+
+	if pdps.Len() == 0 {
+		return nil, nil
 	}
 
 	if err := r.client.Submit(ctx, pdps); err != nil {
@@ -404,7 +412,7 @@ func (r *Reporter) Report(ctx context.Context) (*DataPoints, error) {
 
 	// reset resettable metrics
 	for _, hm := range hookedMetrics {
-		hm.m.PostReportHook(*hm.dp.Value.IntValue)
+		hm.m.PostReportHook(hm.v)
 	}
 
 	// and clear the one-shots
