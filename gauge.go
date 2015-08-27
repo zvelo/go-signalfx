@@ -1,6 +1,7 @@
 package signalfx
 
 import (
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -26,5 +27,31 @@ func (g *Gauge) dataPoint() *dataPoint {
 		Type:       GaugeType,
 		Dimensions: g.Dimensions,
 		Value:      atomic.LoadInt64(&g.value),
+	}
+}
+
+type WrappedGauge struct {
+	Metric     string
+	Dimensions map[string]string
+	Value      Getter
+}
+
+func (c *WrappedGauge) dataPoint() *dataPoint {
+	gottenValue, err := c.Value.Get()
+	if err != nil {
+		fmt.Println("error:", err)
+		return nil
+	}
+	value, err := toInt64(gottenValue)
+	if err != nil {
+		fmt.Println("error2:", err)
+		return nil
+	}
+	return &dataPoint{
+		Metric:     c.Metric,
+		Timestamp:  time.Now(),
+		Type:       CounterType,
+		Dimensions: c.Dimensions,
+		Value:      value,
 	}
 }

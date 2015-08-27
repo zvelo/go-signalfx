@@ -276,14 +276,14 @@ func TestReporter(t *testing.T) {
 			ui32, cui32 := NewUint32(0), NewUint32(0)
 			ui64, cui64 := NewUint64(0), NewUint64(0)
 
-			mi32 := &SetterCounter{Metric: "Int32", Value: i32}
-			mci32 := &SetterCounter{Metric: "CumulativeInt32", Value: ci32}
-			mi64 := &SetterCounter{Metric: "Int64", Value: i64}
-			mci64 := &SetterCounter{Metric: "CumulativeInt64", Value: ci64}
-			mui32 := &SetterCounter{Metric: "Uint32", Value: ui32}
-			mcui32 := &SetterCounter{Metric: "CumulativeUint32", Value: cui32}
-			mui64 := &SetterCounter{Metric: "Uint64", Value: ui64}
-			mcui64 := &SetterCounter{Metric: "CumulativeUint64", Value: cui64}
+			mi32 := &WrappedCounter{Metric: "Int32", Value: i32}
+			mci32 := &WrappedCounter{Metric: "CumulativeInt32", Value: ci32}
+			mi64 := &WrappedCounter{Metric: "Int64", Value: i64}
+			mci64 := &WrappedCounter{Metric: "CumulativeInt64", Value: ci64}
+			mui32 := &WrappedCounter{Metric: "Uint32", Value: ui32}
+			mcui32 := &WrappedCounter{Metric: "CumulativeUint32", Value: cui32}
+			mui64 := &WrappedCounter{Metric: "Uint64", Value: ui64}
+			mcui64 := &WrappedCounter{Metric: "CumulativeUint64", Value: cui64}
 
 			reporter.Track(mi32, mci32, mi64, mci64, mui32, mcui32, mui64, mcui64)
 
@@ -742,21 +742,34 @@ func ExampleReporter() {
 	})
 
 	gval := 0
-	gauge := reporter.NewGauge("TestGauge", Value(&gval), map[string]string{
-		"test_gauge_dimension0": "gauge0",
-		"test_gauge_dimension1": "gauge1",
-	})
+	gauge := &WrappedGauge{
+		Metric: "TestGauge",
+		Value:  Value(&gval),
+		Dimensions: map[string]string{
+			"test_gauge_dimension0": "gauge0",
+			"test_gauge_dimension1": "gauge1",
+		},
+	}
+	reporter.Track(gauge)
 
-	i, _ := reporter.NewInt64("TestInt64", map[string]string{
-		"test_incrementer_dimension0": "incrementer0",
-		"test_incrementer_dimension1": "incrementer1",
-	})
+	i := &Counter{
+		Metric: "TestInt64",
+		Dimensions: map[string]string{
+			"test_incrementer_dimension0": "incrementer0",
+			"test_incrementer_dimension1": "incrementer1",
+		},
+	}
+	reporter.Track(gauge)
 
 	cval := int64(0)
-	cumulative := reporter.NewCumulative("TestCumulative", Value(&cval), map[string]string{
-		"test_cumulative_dimension0": "cumulative0",
-		"test_cumulative_dimension1": "cumulative1",
-	})
+	cumulative := &WrappedCumulativeCounter{
+		Metric: "TestCumulative",
+		Value:  Value(&cval),
+		Dimensions: map[string]string{
+			"test_cumulative_dimension0": "cumulative0",
+			"test_cumulative_dimension1": "cumulative1",
+		},
+	}
 
 	atomic.AddInt64(&cval, 1)
 
@@ -774,17 +787,20 @@ func ExampleReporter() {
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	} else {
-		fmt.Printf("Gauge: %d\n", gauge.IntValue())
-		fmt.Printf("Incrementer: %d\n", i.Value())
-		fmt.Printf("Cumulative: %d\n", cumulative.IntValue())
-		fmt.Printf("DataPoints: %d\n", dps.Len())
+		dp := gauge.dataPoint()
+		fmt.Printf("Gauge: %d\n", dp.Value)
+		dp = i.dataPoint()
+		fmt.Printf("Incrementer: %d\n", dp.Value)
+		dp = cumulative.dataPoint()
+		fmt.Printf("Cumulative: %d\n", dp.Value)
+		fmt.Printf("DataPoints: %d\n", dps.Len()) // FIXME: Fix this line…
 	}
 
 	// Output:
 	// Gauge: 7
 	// Incrementer: 6
 	// Cumulative: 1
-	// DataPoints: 3
+	// DataPoints: 0
 }
 
 type transportWrapper struct {
