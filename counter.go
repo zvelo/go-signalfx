@@ -44,13 +44,13 @@ func (c *Counter) reset(v int64) {
 	atomic.AddUint64(&c.value, ^(vv - 1))
 }
 
-type SetterCounter struct {
+type WrappedCounter struct {
 	Metric     string
 	Dimensions map[string]string
 	Value      Subtracter
 }
 
-func (c *SetterCounter) dataPoint() *dataPoint {
+func (c *WrappedCounter) dataPoint() *dataPoint {
 	gottenValue, err := c.Value.Get()
 	if err != nil {
 		return nil
@@ -68,7 +68,7 @@ func (c *SetterCounter) dataPoint() *dataPoint {
 	}
 }
 
-func (c *SetterCounter) reset(v int64) {
+func (c *WrappedCounter) reset(v int64) {
 	if v < 0 {
 		panic("negative counter should be impossible")
 	}
