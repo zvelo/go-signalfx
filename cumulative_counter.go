@@ -1,7 +1,6 @@
 package signalfx
 
 import (
-	"fmt"
 	"math"
 	"sync/atomic"
 	"time"
@@ -13,8 +12,8 @@ type CumulativeCounter struct {
 	value, previousValue uint64
 }
 
-func (cc *CumulativeCounter) Inc(delta uint64) uint64 {
-	return atomic.AddUint64(&cc.value, delta)
+func (cc *CumulativeCounter) Sample(delta uint64) {
+	atomic.StoreUint64(&cc.value, delta)
 }
 
 func (cc *CumulativeCounter) dataPoint() *dataPoint {
@@ -59,16 +58,26 @@ type WrappedCumulativeCounter struct {
 	value, previousValue uint64
 }
 
+func WrapCumulativeCounter(
+	metric string,
+	dimensions map[string]string,
+	value Getter,
+) *WrappedCumulativeCounter {
+	return &WrappedCumulativeCounter{
+		Metric:     metric,
+		Dimensions: dimensions,
+		Value:      value,
+	}
+}
+
 func (cc *WrappedCumulativeCounter) dataPoint() *dataPoint {
 	previous := atomic.LoadUint64(&cc.previousValue)
 	gottenValue, err := cc.Value.Get()
 	if err != nil {
-		fmt.Println("error:", err)
 		return nil
 	}
 	value, err := toInt64(gottenValue)
 	if err != nil {
-		fmt.Println("error2:", err)
 		return nil
 	}
 	if value < 0 {

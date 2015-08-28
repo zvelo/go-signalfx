@@ -7,7 +7,6 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
 )
 
@@ -34,14 +33,14 @@ func TestGoMetrics(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(datapoints, ShouldNotBeNil)
 
-		So(datapoints.Len(), ShouldEqual, 29) // should be 29 because num_cgo_call should be 0 and ignored
+		So(len(datapoints), ShouldEqual, 29) // should be 29 because num_cgo_call should be 0 and ignored
 
-		testDataPoint := func(dp *DataPoint, t sfxproto.MetricType) {
-			So(dp.Type(), ShouldEqual, t)
-			So(dp.Time().Before(time.Now()), ShouldBeTrue)
-			So(len(dp.Dimensions()), ShouldEqual, 2)
+		testDataPoint := func(dp dataPoint, t MetricType) {
+			So(dp.Type, ShouldEqual, t)
+			So(dp.Timestamp.Before(time.Now()), ShouldBeTrue)
+			So(len(dp.Dimensions), ShouldEqual, 2)
 
-			for key, value := range dp.Dimensions() {
+			for key, value := range dp.Dimensions {
 				switch key {
 				case "instance":
 					So(value, ShouldEqual, "global_stats")
@@ -52,15 +51,11 @@ func TestGoMetrics(t *testing.T) {
 				}
 			}
 
-			So(dp.pdp.Value, ShouldNotBeNil)
-			So(dp.StrValue(), ShouldEqual, "")
-			So(dp.DoubleValue(), ShouldEqual, 0)
-			So(dp.IntValue(), ShouldBeGreaterThanOrEqualTo, 0)
+			So(dp.Value, ShouldBeGreaterThanOrEqualTo, 0)
 		}
 
-		list := datapoints.List()
-		for _, dp := range list {
-			switch dp.Metric() {
+		for _, dp := range datapoints {
+			switch dp.Metric {
 			case "Alloc",
 				"Sys",
 				"HeapAlloc",
@@ -85,11 +80,11 @@ func TestGoMetrics(t *testing.T) {
 				"process.uptime.ns",
 				"num_cpu",
 				"num_goroutine":
-				testDataPoint(dp, sfxproto.MetricType_GAUGE)
+				testDataPoint(dp, GaugeType)
 			case "TotalAlloc", "Lookups", "Mallocs", "Frees", "PauseTotalNs", "num_cgo_call":
-				testDataPoint(dp, sfxproto.MetricType_CUMULATIVE_COUNTER)
+				testDataPoint(dp, CumulativeCounterType)
 			default:
-				So(dp.Metric(), ShouldEqual, forceFail)
+				So(dp.Metric, ShouldEqual, forceFail)
 			}
 		}
 

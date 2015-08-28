@@ -1,5 +1,7 @@
 package signalfx
 
+import "sync/atomic"
+
 func toInt64(val interface{}) (int64, error) {
 	switch tval := val.(type) {
 	case int:
@@ -17,11 +19,11 @@ func toInt64(val interface{}) (int64, error) {
 	case int32:
 		return int64(tval), nil
 	case *int32:
-		return int64(*tval), nil
+		return int64(atomic.LoadInt32(tval)), nil
 	case int64:
 		return tval, nil
 	case *int64:
-		return *tval, nil
+		return atomic.LoadInt64(tval), nil
 	case uint:
 		return int64(tval), nil
 	case *uint:

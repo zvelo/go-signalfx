@@ -32,7 +32,7 @@ func TestReporter(t *testing.T) {
 		reporter := NewReporter(config, nil)
 		So(reporter, ShouldNotBeNil)
 
-		So(reporter.datapoints.Len(), ShouldEqual, 0)
+		So(len(reporter.metrics), ShouldEqual, 0)
 		So(len(reporter.buckets), ShouldEqual, 0)
 
 		Convey("working with datapoints", func() {
@@ -40,7 +40,7 @@ func TestReporter(t *testing.T) {
 
 			bucket := reporter.NewBucket("bucket", nil)
 			So(bucket, ShouldNotBeNil)
-			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			So(len(reporter.metrics), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
 			cumulative := &CumulativeCounter{Metric: "cumulative"}
@@ -95,25 +95,20 @@ func TestReporter(t *testing.T) {
 			So(len(reporter.metrics), ShouldEqual, 0)
 
 			cb := 0
-			addDataPointF := func(dims map[string]string) *DataPoints {
+			addDataPointF := func() []dataPoint {
 				cb++
-				count0, err := NewCounter("count0", Value(1), nil)
-				if err != nil {
-					return nil
+				return []dataPoint{
+					{
+						Metric: "count0",
+						Value:  1,
+					},
+					{
+						Metric: "count0",
+						Value:  2,
+					},
 				}
-				So(count0, ShouldNotBeNil)
-
-				count1, err := NewCounter("count1", Value(1), nil)
-				if err != nil {
-					return nil
-				}
-
-				So(count1, ShouldNotBeNil)
-				return NewDataPoints(2).
-					Add(count0).
-					Add(count1)
 			}
-			addDataPointErrF := func(dims map[string]string) *DataPoints {
+			addDataPointErrF := func() []dataPoint {
 				cb++
 				return nil
 			}
@@ -125,7 +120,7 @@ func TestReporter(t *testing.T) {
 			dps, err := reporter.Report(nil)
 			So(err, ShouldBeNil)
 			So(dps, ShouldNotBeNil)
-			So(dps.Len(), ShouldEqual, 2)
+			So(len(dps), ShouldEqual, 2)
 			So(len(reporter.metrics), ShouldEqual, 0)
 			So(cb, ShouldEqual, 3)
 		})
@@ -135,14 +130,14 @@ func TestReporter(t *testing.T) {
 			bucket.Add(2)
 			dps, err := reporter.Report(context.Background())
 			So(err, ShouldBeNil)
-			So(dps.Len(), ShouldEqual, 5) // TODO: verify that 5 is correct, not just expected
+			So(len(dps), ShouldEqual, 5) // TODO: verify that 5 is correct, not just expected
 		})
 
 		Convey("a blanked counter shouldn't report", func() {
 			counter := &Counter{Metric: "foo"}
 			reporter.Track(counter)
 			dp, err := reporter.Report(context.Background())
-			So(dp.Len(), ShouldBeZeroValue)
+			So(len(dp), ShouldBeZeroValue)
 			So(err, ShouldBeNil)
 		})
 		Convey("but a counter with a value should", func() {
@@ -150,7 +145,7 @@ func TestReporter(t *testing.T) {
 			reporter.Track(counter)
 			counter.Inc(1)
 			dp, err := reporter.Report(context.Background())
-			So(dp.Len(), ShouldBeZeroValue)
+			So(len(dp), ShouldBeGreaterThan, 0)
 			So(err, ShouldBeNil)
 		})
 
@@ -159,14 +154,14 @@ func TestReporter(t *testing.T) {
 			reporter.Track(counter)
 			_, err := reporter.Report(context.Background())
 			So(err, ShouldEqual, nil)
-			counter.Inc(1)
+			counter.Sample(1)
 			_, err = reporter.Report(context.Background())
 			So(err, ShouldBeNil)
 			// since it didn't change, it shouldn't report
 			dps, err := reporter.Report(context.Background())
 			So(err, ShouldBeNil)
 			So(dps, ShouldBeNil)
-			counter.Inc(1)
+			counter.Sample(1)
 			_, err = reporter.Report(context.Background())
 			So(err, ShouldBeNil)
 		})
@@ -263,8 +258,9 @@ func TestReporter(t *testing.T) {
 				}
 			})
 
-			dp := tmpR.NewGauge("BadGauge", f, nil)
-			So(dp, ShouldNotBeNil)
+			m := WrapGauge("BadGauge", nil, f)
+			So(m, ShouldNotBeNil)
+			reporter.Track(m)
 			dps, err := tmpR.Report(context.Background())
 			So(dps, ShouldBeNil)
 			So(err, ShouldBeNil)
@@ -289,56 +285,6 @@ func TestReporter(t *testing.T) {
 
 			So(len(reporter.metrics), ShouldEqual, 8)
 			So(len(reporter.buckets), ShouldEqual, 0)
-
-			Convey("Metric names should be required", func() {
-				i32, dpi32 := reporter.NewInt32("", nil)
-				So(i32, ShouldBeNil)
-				So(dpi32, ShouldBeNil)
-				So(len(reporter.metrics), ShouldEqual, 8)
-				So(len(reporter.buckets), ShouldEqual, 0)
-
-				ci32, dpci32 := reporter.NewCumulativeInt32("", nil)
-				So(ci32, ShouldBeNil)
-				So(dpci32, ShouldBeNil)
-				So(len(reporter.metrics), ShouldEqual, 8)
-				So(len(reporter.buckets), ShouldEqual, 0)
-
-				i64, dpi64 := reporter.NewInt64("", nil)
-				So(i64, ShouldBeNil)
-				So(dpi64, ShouldBeNil)
-				So(len(reporter.metrics), ShouldEqual, 8)
-				So(len(reporter.buckets), ShouldEqual, 0)
-
-				ci64, dpci64 := reporter.NewCumulativeInt64("", nil)
-				So(ci64, ShouldBeNil)
-				So(dpci64, ShouldBeNil)
-				So(len(reporter.metrics), ShouldEqual, 8)
-				So(len(reporter.buckets), ShouldEqual, 0)
-
-				ui32, dpui32 := reporter.NewUint32("", nil)
-				So(ui32, ShouldBeNil)
-				So(dpui32, ShouldBeNil)
-				So(len(reporter.metrics), ShouldEqual, 8)
-				So(len(reporter.buckets), ShouldEqual, 0)
-
-				cui32, dpcui32 := reporter.NewCumulativeUint32("", nil)
-				So(cui32, ShouldBeNil)
-				So(dpcui32, ShouldBeNil)
-				So(len(reporter.metrics), ShouldEqual, 8)
-				So(len(reporter.buckets), ShouldEqual, 0)
-
-				ui64, dpui64 := reporter.NewUint64("", nil)
-				So(ui64, ShouldBeNil)
-				So(dpui64, ShouldBeNil)
-				So(len(reporter.metrics), ShouldEqual, 8)
-				So(len(reporter.buckets), ShouldEqual, 0)
-
-				cui64, dpcui64 := reporter.NewCumulativeUint64("", nil)
-				So(cui64, ShouldBeNil)
-				So(dpcui64, ShouldBeNil)
-				So(len(reporter.metrics), ShouldEqual, 8)
-				So(len(reporter.buckets), ShouldEqual, 0)
-			})
 
 			Convey("Int32", func() {
 				So(i32, ShouldNotBeNil)
@@ -698,25 +644,26 @@ func TestReporter(t *testing.T) {
 			reporter := NewReporter(config, nil)
 			So(reporter, ShouldNotBeNil)
 
-			So(reporter.datapoints.Len(), ShouldEqual, 0)
+			So(len(reporter.metrics), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 0)
 
-			// FIXME: it should be easier to override a client's transport…
+			// TODO: it should be easier to override a client's transport…
 			tw := transportWrapper{wrapped: reporter.client.tr}
 			reporter.client.tr = &tw
 			reporter.client.client = &http.Client{Transport: &tw}
 
 			So(tw.counter, ShouldBeZeroValue)
-			var count int
-			counter := reporter.NewCounter("count", Value(count), nil)
-			err := counter.Set(1)
+			count := NewInt64(0)
+			counter := WrapCumulativeCounter("count", nil, count)
+			reporter.Track(counter)
+			count.Set(1)
+			dps, err := reporter.Report(nil)
 			So(err, ShouldBeNil)
-			_, err = reporter.Report(nil)
-			So(err, ShouldBeNil)
+			So(len(dps), ShouldNotEqual, 0)
 			So(tw.counter, ShouldEqual, 1)
 
 			cancelFunc := reporter.RunInBackground(time.Second * 5)
-			err = counter.Set(2)
+			count.Set(2)
 			So(err, ShouldBeNil)
 			time.Sleep(time.Second * 7)
 			So(tw.counter, ShouldEqual, 2)
@@ -725,7 +672,7 @@ func TestReporter(t *testing.T) {
 			So(tw.counter, ShouldEqual, 2)
 			cancelFunc()
 			// prove that it's cancelled
-			err = counter.Set(3)
+			count.Set(3)
 			So(err, ShouldBeNil)
 			time.Sleep(time.Second * 7)
 			So(tw.counter, ShouldEqual, 2)
@@ -759,7 +706,7 @@ func ExampleReporter() {
 			"test_incrementer_dimension1": "incrementer1",
 		},
 	}
-	reporter.Track(gauge)
+	reporter.Track(i)
 
 	cval := int64(0)
 	cumulative := &WrappedCumulativeCounter{
@@ -770,6 +717,7 @@ func ExampleReporter() {
 			"test_cumulative_dimension1": "cumulative1",
 		},
 	}
+	reporter.Track(cumulative)
 
 	atomic.AddInt64(&cval, 1)
 
@@ -787,20 +735,31 @@ func ExampleReporter() {
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	} else {
-		dp := gauge.dataPoint()
-		fmt.Printf("Gauge: %d\n", dp.Value)
-		dp = i.dataPoint()
-		fmt.Printf("Incrementer: %d\n", dp.Value)
-		dp = cumulative.dataPoint()
-		fmt.Printf("Cumulative: %d\n", dp.Value)
-		fmt.Printf("DataPoints: %d\n", dps.Len()) // FIXME: Fix this line…
+		// find the associated datapoints for each metric
+		var gval, ival, cval int64
+		for _, dp := range dps {
+			switch dp.Metric {
+			case "TestGauge":
+				gval = dp.Value
+			case "TestInt64":
+				ival = dp.Value
+			case "TestCumulative":
+				cval = dp.Value
+			default:
+				panic("this should never happen")
+			}
+		}
+		fmt.Printf("Gauge: %d\n", gval)
+		fmt.Printf("Incrementer: %d\n", ival)
+		fmt.Printf("Cumulative: %d\n", cval)
+		fmt.Printf("Metrics: %d\n", len(dps)) // FIXME: Fix this line…
 	}
 
 	// Output:
 	// Gauge: 7
 	// Incrementer: 6
 	// Cumulative: 1
-	// DataPoints: 0
+	// Metrics: 3
 }
 
 type transportWrapper struct {

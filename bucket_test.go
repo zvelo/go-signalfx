@@ -2,6 +2,7 @@ package signalfx
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -12,7 +13,9 @@ func TestBucket(t *testing.T) {
 	Convey("Testing Bucket", t, func() {
 		b := NewBucket("test", map[string]string{"c": "3"})
 		So(b, ShouldNotBeNil)
-		So(b.DataPoints(nil).Len(), ShouldEqual, 3)
+		So(len(b.DataPoints()), ShouldEqual, 3)
+		So(b.min, ShouldEqual, math.MaxInt64)
+		So(b.max, ShouldEqual, math.MinInt64)
 
 		Convey("metric naming should be correct", func() {
 			So(b.Metric(), ShouldEqual, "test")
@@ -119,7 +122,7 @@ func TestBucket(t *testing.T) {
 			So(b.Min(), ShouldEqual, 0)
 
 			b.Add(1)
-			So(b.DataPoints(map[string]string{"a": "b"}).Len(), ShouldEqual, 5)
+			So(len(b.DataPoints()), ShouldEqual, 5)
 		})
 
 		Convey("disabling datapoints should work", func() {
@@ -130,7 +133,7 @@ func TestBucket(t *testing.T) {
 			b.Add(3)
 
 			So(b.Count(), ShouldEqual, 3)
-			So(b.DataPoints(map[string]string{"a": "b"}).Len(), ShouldEqual, 4)
+			So(len(b.DataPoints()), ShouldEqual, 4)
 		})
 	})
 }
@@ -160,7 +163,7 @@ func ExampleBucket() {
 	if err != nil {
 		fmt.Println("Error:", err)
 	} else {
-		fmt.Println("DataPoints:", dps.Len())
+		fmt.Println("Metrics:", len(dps))
 	}
 
 	// Output:
@@ -170,5 +173,5 @@ func ExampleBucket() {
 	// Max: 9
 	// Sum: 14
 	// SumOfSquares: 106
-	// DataPoints: 5
+	// Metrics: 5
 }

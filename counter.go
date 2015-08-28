@@ -22,7 +22,7 @@ func (c *Counter) Inc(delta uint64) uint64 {
 
 func (c *Counter) dataPoint() *dataPoint {
 	value := atomic.LoadUint64(&c.value)
-	if value > math.MaxInt64 {
+	if value == 0 || value > math.MaxInt64 {
 		return nil
 	}
 	return &dataPoint{
@@ -48,6 +48,18 @@ type WrappedCounter struct {
 	Metric     string
 	Dimensions map[string]string
 	Value      Subtracter
+}
+
+func WrapCounter(
+	metric string,
+	dimensions map[string]string,
+	value Subtracter,
+) *WrappedCounter {
+	return &WrappedCounter{
+		Metric:     metric,
+		Dimensions: dimensions,
+		Value:      value,
+	}
 }
 
 func (c *WrappedCounter) dataPoint() *dataPoint {

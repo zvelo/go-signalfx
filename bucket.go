@@ -24,15 +24,20 @@ var (
 // A Bucket trakcs groups of values, reporting metrics as gauges and
 // resetting each time it reports. All operations on Buckets are goroutine safe.
 type Bucket struct {
-	metric          string
-	dimensions      map[string]string
-	count           uint64
-	min             int64
-	max             int64
-	sum             int64
-	sumOfSquares    int64
-	mu              sync.Mutex
-	disabledMetrics map[int]bool
+	metric             string
+	dimensions         map[string]string
+	count              uint64
+	countMetric        Counter
+	min                int64
+	minMetric          Gauge
+	max                int64
+	maxMetric          Gauge
+	sum                int64
+	sumMetric          Gauge
+	sumOfSquares       int64
+	sumOfSquaresMetric Gauge
+	mu                 sync.Mutex
+	disabledMetrics    map[int]bool
 }
 
 func (b *Bucket) lock() {
@@ -241,90 +246,66 @@ func (b *Bucket) dimFor(defaultDims map[string]string, rollup string) map[string
 	return dims
 }
 
-// CountDataPoint returns a DataPoint representing the Bucket's Count. Because
-// the passed in dimensions can not be locked by this method, it is important
-// that the caller ensures its state does not change for the duration of the
-// operation.
-func (b *Bucket) CountDataPoint(defaultDims map[string]string) *DataPoint {
+// DataPoints returns a DataPoints object with DataPoint values for
+// Count, Sum, SumOfSquares, Min and Max (if set). Note that this
+// resets all values.  If no values have been added to the bucket
+// since the last report, it returns 0 for count, sum and
+// sum-of-squares, omitting max and min.  If the count is higher than
+// may be represented in an int64, then the count will be omitted.
+func (b *Bucket) DataPoints() []dataPoint {
+	dps := make([]dataPoint, 0, 5)
 	cnt := atomic.SwapUint64(&b.count, 0)
-	dp, _ := NewGauge(b.Metric(), cnt, b.dimFor(defaultDims, "count"))
-	return dp
-}
-
-// SumDataPoint returns a DataPoint representing the Bucket's Sum. Because the
-// passed in dimensions can not be locked by this method, it is important that
-// the caller ensures its state does not change for the duration of the
-// operation.
-func (b *Bucket) SumDataPoint(defaultDims map[string]string) *DataPoint {
-	sum := atomic.SwapInt64(&b.sum, 0)
-	dp, _ := NewGauge(b.Metric(), sum, b.dimFor(defaultDims, "sum"))
-	return dp
-}
-
-// SumOfSquaresDataPoint returns a DataPoint representing the Bucket's
-// SumOfSquares. Because the passed in dimensions can not be locked by this
-// method, it is important that the caller ensures its state does not change for
-// the duration of the operation.
-func (b *Bucket) SumOfSquaresDataPoint(defaultDims map[string]string) *DataPoint {
-	sps := atomic.SwapInt64(&b.sumOfSquares, 0)
-	dp, _ := NewGauge(b.Metric(), sps, b.dimFor(defaultDims, "sumsquare"))
-	return dp
-}
-
-// MinDataPoint returns a DataPoint representing the Bucket's Min. Note that
-// this resets the Min value. nil is returned if no items have been added to the
-// bucket since it was created or last reset. Because the passed in dimensions
-// can not be locked by this method, it is important that the caller ensures its
-// state does not change for the duration of the operation.
-func (b *Bucket) MinDataPoint(defaultDims map[string]string) *DataPoint {
 	min := atomic.SwapInt64(&b.min, math.MaxInt64)
-
-	if b.Count() != 0 && min != math.MaxInt64 {
-		dp, _ := NewGauge(b.Metric(), min, b.dimFor(defaultDims, "min"))
-		return dp
-	}
-
-	return nil
-}
-
-// MaxDataPoint returns a DataPoint representing the Bucket's Max. Note that
-// this resets the Max value. nil is returned if no items have been added to the
-// bucket since it was created or last reset. Because the passed in dimensions
-// can not be locked by this method, it is important that the caller ensures its
-// state does not change for the duration of the operation.
-func (b *Bucket) MaxDataPoint(defaultDims map[string]string) *DataPoint {
 	max := atomic.SwapInt64(&b.max, math.MinInt64)
-
-	if b.Count() != 0 && max != math.MinInt64 {
-		dp, _ := NewGauge(b.Metric(), max, b.dimFor(defaultDims, "max"))
-		return dp
+	sum := atomic.SwapInt64(&b.sum, 0)
+	sos := atomic.SwapInt64(&b.sumOfSquares, 0)
+	if cnt != 0 {
+		if !b.disabledMetrics[BucketMetricMin] {
+			dp := dataPoint{
+				Metric:     b.metric,
+				Dimensions: b.dimensions,
+				Type:       GaugeType,
+				Value:      min,
+			}
+			dps = append(dps, dp)
+		}
+		if !b.disabledMetrics[BucketMetricMax] {
+			dp := dataPoint{
+				Metric:     b.metric,
+				Dimensions: b.dimensions,
+				Type:       GaugeType,
+				Value:      max,
+			}
+			dps = append(dps, dp)
+		}
 	}
-
-	return nil
-}
-
-// DataPoints returns a DataPoints object with DataPoint values for Count, Sum,
-// SumOfSquares, Min and Max (if set). Note that this resets all values.
-// Because the passed in dimensions can not be locked by this method, it is
-// important that the caller ensures its state does not change for the duration
-// of the operation.
-func (b *Bucket) DataPoints(defaultDims map[string]string) *DataPoints {
-	dp := NewDataPoints(5)
-	if !b.disabledMetrics[BucketMetricMin] {
-		dp = dp.Add(b.MinDataPoint(defaultDims))
-	}
-	if !b.disabledMetrics[BucketMetricMax] {
-		dp = dp.Add(b.MaxDataPoint(defaultDims))
-	}
-	if !b.disabledMetrics[BucketMetricCount] {
-		dp = dp.Add(b.CountDataPoint(defaultDims))
+	if !b.disabledMetrics[BucketMetricCount] && cnt <= math.MaxInt64 {
+		dp := dataPoint{
+			Metric:     b.metric,
+			Dimensions: b.dimensions,
+			Type:       CounterType,
+			Value:      int64(cnt),
+		}
+		dps = append(dps, dp)
 	}
 	if !b.disabledMetrics[BucketMetricSum] {
-		dp = dp.Add(b.SumDataPoint(defaultDims))
+		dp := dataPoint{
+			Metric:     b.metric,
+			Dimensions: b.dimensions,
+			Type:       GaugeType,
+			Value:      sum,
+		}
+		dps = append(dps, dp)
 	}
 	if !b.disabledMetrics[BucketMetricSumOfSquares] {
-		dp = dp.Add(b.SumOfSquaresDataPoint(defaultDims))
+		dp := dataPoint{
+			Metric:     b.metric,
+			Dimensions: b.dimensions,
+			Type:       GaugeType,
+			Value:      sos,
+		}
+		dps = append(dps, dp)
 	}
 
-	return dp
+	return dps
 }
