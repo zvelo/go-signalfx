@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/net/context"
@@ -123,6 +124,13 @@ func TestBucket(t *testing.T) {
 
 			b.Add(1)
 			So(len(b.DataPoints()), ShouldEqual, 5)
+		})
+
+		Convey("bucket datapoints should be sensible", func() {
+			t := time.Now()
+			dps := b.DataPoints()
+			So(len(dps), ShouldBeGreaterThan, 0)
+			So(dps[0].Timestamp.After(t), ShouldBeTrue)
 		})
 
 		Convey("disabling datapoints should work", func() {

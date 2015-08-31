@@ -4,6 +4,7 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/zvelo/go-signalfx/sfxproto"
 )
@@ -259,6 +260,7 @@ func (b *Bucket) DataPoints() []DataPoint {
 	max := atomic.SwapInt64(&b.max, math.MinInt64)
 	sum := atomic.SwapInt64(&b.sum, 0)
 	sos := atomic.SwapInt64(&b.sumOfSquares, 0)
+	timestamp := time.Now()
 	if cnt != 0 {
 		if !b.disabledMetrics[BucketMetricMin] {
 			dp := DataPoint{
@@ -266,6 +268,7 @@ func (b *Bucket) DataPoints() []DataPoint {
 				Dimensions: b.dimensions,
 				Type:       GaugeType,
 				Value:      min,
+				Timestamp:  timestamp,
 			}
 			dps = append(dps, dp)
 		}
@@ -275,6 +278,7 @@ func (b *Bucket) DataPoints() []DataPoint {
 				Dimensions: b.dimensions,
 				Type:       GaugeType,
 				Value:      max,
+				Timestamp:  timestamp,
 			}
 			dps = append(dps, dp)
 		}
@@ -285,6 +289,7 @@ func (b *Bucket) DataPoints() []DataPoint {
 			Dimensions: b.dimensions,
 			Type:       CounterType,
 			Value:      int64(cnt),
+			Timestamp:  timestamp,
 		}
 		dps = append(dps, dp)
 	}
@@ -294,6 +299,7 @@ func (b *Bucket) DataPoints() []DataPoint {
 			Dimensions: b.dimensions,
 			Type:       GaugeType,
 			Value:      sum,
+			Timestamp:  timestamp,
 		}
 		dps = append(dps, dp)
 	}
@@ -303,6 +309,7 @@ func (b *Bucket) DataPoints() []DataPoint {
 			Dimensions: b.dimensions,
 			Type:       GaugeType,
 			Value:      sos,
+			Timestamp:  timestamp,
 		}
 		dps = append(dps, dp)
 	}
