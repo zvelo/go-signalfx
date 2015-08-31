@@ -287,6 +287,7 @@ func (r *Reporter) Inc(metric string, dimensions map[string]string, delta uint64
 		Dimensions: dimensions,
 		Type:       CounterType,
 		Value:      int64(delta),
+		Timestamp:  time.Now(),
 	})
 }
 
@@ -298,6 +299,7 @@ func (r *Reporter) Record(metric string, dimensions map[string]string, value int
 		Dimensions: dimensions,
 		Type:       GaugeType,
 		Value:      value,
+		Timestamp:  time.Now(),
 	})
 }
 
@@ -309,6 +311,7 @@ func (r *Reporter) Sample(metric string, dimensions map[string]string, value int
 		Dimensions: dimensions,
 		Type:       CumulativeCounterType,
 		Value:      value,
+		Timestamp:  time.Now(),
 	})
 }
 

@@ -220,6 +220,7 @@ func TestReporter(t *testing.T) {
 		})
 
 		Convey("Inc should handle cheap one-shot counter increments", func() {
+			timestamp := time.Now()
 			config := config.Clone()
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Write([]byte(`"OK"`))
@@ -244,9 +245,11 @@ func TestReporter(t *testing.T) {
 				"host":   hostname,
 				"pid":    strconv.Itoa(os.Getpid()),
 			}, 1)
-			_, err = r.Report(context.Background())
+			dps, err := r.Report(context.Background())
 			So(err, ShouldBeNil)
 			So(tw.counter, ShouldEqual, 1)
+			So(len(dps), ShouldEqual, 1)
+			So(dps[0].Timestamp.After(timestamp), ShouldBeTrue)
 
 			So(func() {
 				reporter.Inc("foo", nil, math.MaxInt64+1)
@@ -254,6 +257,7 @@ func TestReporter(t *testing.T) {
 		})
 
 		Convey("Record should handle cheap one-shot gauge values", func() {
+			ts := time.Now()
 			reporter.Record("foo", nil, 12)
 			dps, err := reporter.Report(nil)
 			So(err, ShouldBeNil)
@@ -262,9 +266,11 @@ func TestReporter(t *testing.T) {
 			So(dp.Metric, ShouldEqual, "foo")
 			So(dp.Type, ShouldEqual, GaugeType)
 			So(dp.Value, ShouldEqual, 12)
+			So(dp.Timestamp.After(ts), ShouldBeTrue)
 		})
 
 		Convey("Sample should handle cheap one-shot cumulative counter samples", func() {
+			ts := time.Now()
 			reporter.Sample("foo", nil, 12)
 			dps, err := reporter.Report(nil)
 			So(err, ShouldBeNil)
@@ -273,6 +279,7 @@ func TestReporter(t *testing.T) {
 			So(dp.Metric, ShouldEqual, "foo")
 			So(dp.Type, ShouldEqual, CumulativeCounterType)
 			So(dp.Value, ShouldEqual, 12)
+			So(dp.Timestamp.After(ts), ShouldBeTrue)
 		})
 
 		Convey("report does not include broken Getters", func() {
