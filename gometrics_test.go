@@ -35,7 +35,7 @@ func TestGoMetrics(t *testing.T) {
 
 		So(len(datapoints), ShouldEqual, 29) // should be 29 because num_cgo_call should be 0 and ignored
 
-		testDataPoint := func(dp dataPoint, t MetricType) {
+		testDataPoint := func(dp DataPoint, t MetricType) {
 			So(dp.Type, ShouldEqual, t)
 			So(dp.Timestamp.Before(time.Now()), ShouldBeTrue)
 			So(len(dp.Dimensions), ShouldEqual, 2)

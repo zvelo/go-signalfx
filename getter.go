@@ -2,13 +2,15 @@ package signalfx
 
 import "sync/atomic"
 
-// Getter is an interface that is used by DataPoint. Get must return any kind of
-// int, float, string, nil or pointer to those types. Any other type is invalid.
+// Getter is an interface that is used by DataPoint. Get must return
+// any kind of int, float, nil or pointer to those types (a nil
+// indicates an absent value).  Any other type is invalid.  It no
+// longer supports strings.
 type Getter interface {
 	Get() (interface{}, error)
 }
 
-type Subtracter interface {
+type Subtractor interface {
 	Getter
 	Subtract(int64)
 }
@@ -16,7 +18,7 @@ type Subtracter interface {
 // The GetterFunc type is an adapter to allow the use of ordinary functions as
 // DataPoint Getters. If f is a function with the appropriate signature,
 // GetterFunc(f) is a Getter object that calls f. f() must return a value that
-// is any type of int, float, string, nil or pointer to those types.
+// is any type of int, float, nil or pointer to those types.
 type GetterFunc func() (interface{}, error)
 
 // Get calls f()
@@ -24,10 +26,11 @@ func (f GetterFunc) Get() (interface{}, error) {
 	return f()
 }
 
-// Value is a convenience function for making a value satisfy the Getter
-// interface. val can be any type of int, float, string, nil or pointer to those
-// types. If val is a pointer type, its value should not be changed, when in a
-// Reporter, except within a PreReportCallback, for goroutine safety.
+// Value is a convenience function for making a value satisfy the
+// Getter interface. val can be any type of int, float, nil or pointer
+// to those types. If val is a pointer type, its value should not be
+// changed, when in a Reporter, except within a PreReportCallback, for
+// goroutine safety.
 func Value(val interface{}) Getter {
 	return vg{val}
 }

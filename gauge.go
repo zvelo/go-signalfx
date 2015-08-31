@@ -8,31 +8,35 @@ import (
 )
 
 type Gauge struct {
-	Metric     string
-	Dimensions map[string]string
+	metric     string
+	dimensions map[string]string
 	value      int64
 }
 
 var gaugeType = sfxproto.MetricType_GAUGE
 
+func NewGauge(metric string, dimensions map[string]string, value int64) *Gauge {
+	return &Gauge{metric: metric, dimensions: dimensions, value: value}
+}
+
 func (g *Gauge) Record(value int64) {
 	atomic.StoreInt64(&g.value, value)
 }
 
-func (g *Gauge) dataPoint() *dataPoint {
-	return &dataPoint{
-		Metric:     g.Metric,
+func (g *Gauge) DataPoint() *DataPoint {
+	return &DataPoint{
+		Metric:     g.metric,
 		Timestamp:  time.Now(),
 		Type:       GaugeType,
-		Dimensions: g.Dimensions,
+		Dimensions: g.dimensions,
 		Value:      atomic.LoadInt64(&g.value),
 	}
 }
 
 type WrappedGauge struct {
-	Metric     string
-	Dimensions map[string]string
-	Value      Getter
+	metric     string
+	dimensions map[string]string
+	value      Getter
 }
 
 func WrapGauge(
@@ -41,14 +45,14 @@ func WrapGauge(
 	value Getter,
 ) *WrappedGauge {
 	return &WrappedGauge{
-		Metric:     metric,
-		Dimensions: dimensions,
-		Value:      value,
+		metric:     metric,
+		dimensions: dimensions,
+		value:      value,
 	}
 }
 
-func (c *WrappedGauge) dataPoint() *dataPoint {
-	gottenValue, err := c.Value.Get()
+func (c *WrappedGauge) DataPoint() *DataPoint {
+	gottenValue, err := c.value.Get()
 	if err != nil {
 		return nil
 	}
@@ -56,11 +60,11 @@ func (c *WrappedGauge) dataPoint() *dataPoint {
 	if err != nil {
 		return nil
 	}
-	return &dataPoint{
-		Metric:     c.Metric,
+	return &DataPoint{
+		Metric:     c.metric,
 		Timestamp:  time.Now(),
 		Type:       GaugeType,
-		Dimensions: c.Dimensions,
+		Dimensions: c.dimensions,
 		Value:      value,
 	}
 }

@@ -9,32 +9,36 @@ import (
 )
 
 type Counter struct {
-	Metric     string
-	Dimensions map[string]string
+	metric     string
+	dimensions map[string]string
 	value      uint64
 }
 
 var counterType = sfxproto.MetricType_COUNTER
 
+func NewCounter(metric string, dimensions map[string]string, value uint64) *Counter {
+	return &Counter{metric: metric, dimensions: dimensions, value: value}
+}
+
 func (c *Counter) Inc(delta uint64) uint64 {
 	return atomic.AddUint64(&c.value, delta)
 }
 
-func (c *Counter) dataPoint() *dataPoint {
+func (c *Counter) DataPoint() *DataPoint {
 	value := atomic.LoadUint64(&c.value)
 	if value == 0 || value > math.MaxInt64 {
 		return nil
 	}
-	return &dataPoint{
-		Metric:     c.Metric,
+	return &DataPoint{
+		Metric:     c.metric,
 		Timestamp:  time.Now(),
 		Type:       CounterType,
-		Dimensions: c.Dimensions,
+		Dimensions: c.dimensions,
 		Value:      int64(value),
 	}
 }
 
-func (c *Counter) reset(v int64) {
+func (c *Counter) PostReportHook(v int64) {
 	if v < 0 {
 		panic("negative counter should be impossible")
 	}
@@ -45,25 +49,25 @@ func (c *Counter) reset(v int64) {
 }
 
 type WrappedCounter struct {
-	Metric     string
-	Dimensions map[string]string
-	Value      Subtracter
+	metric     string
+	dimensions map[string]string
+	value      Subtractor
 }
 
 func WrapCounter(
 	metric string,
 	dimensions map[string]string,
-	value Subtracter,
+	value Subtractor,
 ) *WrappedCounter {
 	return &WrappedCounter{
-		Metric:     metric,
-		Dimensions: dimensions,
-		Value:      value,
+		metric:     metric,
+		dimensions: dimensions,
+		value:      value,
 	}
 }
 
-func (c *WrappedCounter) dataPoint() *dataPoint {
-	gottenValue, err := c.Value.Get()
+func (c *WrappedCounter) DataPoint() *DataPoint {
+	gottenValue, err := c.value.Get()
 	if err != nil {
 		return nil
 	}
@@ -71,18 +75,18 @@ func (c *WrappedCounter) dataPoint() *dataPoint {
 	if err != nil {
 		return nil
 	}
-	return &dataPoint{
-		Metric:     c.Metric,
+	return &DataPoint{
+		Metric:     c.metric,
 		Timestamp:  time.Now(),
 		Type:       CounterType,
-		Dimensions: c.Dimensions,
+		Dimensions: c.dimensions,
 		Value:      value,
 	}
 }
 
-func (c *WrappedCounter) reset(v int64) {
+func (c *WrappedCounter) PostReportHook(v int64) {
 	if v < 0 {
 		panic("negative counter should be impossible")
 	}
-	c.Value.Subtract(v)
+	c.value.Subtract(v)
 }

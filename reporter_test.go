@@ -43,17 +43,17 @@ func TestReporter(t *testing.T) {
 			So(len(reporter.metrics), ShouldEqual, 0)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			cumulative := &CumulativeCounter{Metric: "cumulative"}
+			cumulative := &CumulativeCounter{metric: "cumulative"}
 			reporter.Track(cumulative)
 			So(len(reporter.metrics), ShouldEqual, 1)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			gauge := &Gauge{Metric: "gauge"}
+			gauge := &Gauge{metric: "gauge"}
 			reporter.Track(gauge)
 			So(len(reporter.metrics), ShouldEqual, 2)
 			So(len(reporter.buckets), ShouldEqual, 1)
 
-			counter := &Counter{Metric: "counter"}
+			counter := &Counter{metric: "counter"}
 			reporter.Track(counter)
 			So(counter, ShouldNotBeNil)
 			So(len(reporter.metrics), ShouldEqual, 3)
@@ -95,9 +95,9 @@ func TestReporter(t *testing.T) {
 			So(len(reporter.metrics), ShouldEqual, 0)
 
 			cb := 0
-			addDataPointF := func() []dataPoint {
+			addDataPointF := func() []DataPoint {
 				cb++
-				return []dataPoint{
+				return []DataPoint{
 					{
 						Metric: "count0",
 						Value:  1,
@@ -108,7 +108,7 @@ func TestReporter(t *testing.T) {
 					},
 				}
 			}
-			addDataPointErrF := func() []dataPoint {
+			addDataPointErrF := func() []DataPoint {
 				cb++
 				return nil
 			}
@@ -134,14 +134,14 @@ func TestReporter(t *testing.T) {
 		})
 
 		Convey("a blanked counter shouldn't report", func() {
-			counter := &Counter{Metric: "foo"}
+			counter := &Counter{metric: "foo"}
 			reporter.Track(counter)
 			dp, err := reporter.Report(context.Background())
 			So(len(dp), ShouldBeZeroValue)
 			So(err, ShouldBeNil)
 		})
 		Convey("but a counter with a value should", func() {
-			counter := &Counter{Metric: "foo"}
+			counter := &Counter{metric: "foo"}
 			reporter.Track(counter)
 			counter.Inc(1)
 			dp, err := reporter.Report(context.Background())
@@ -150,7 +150,7 @@ func TestReporter(t *testing.T) {
 		})
 
 		Convey("a cumulative counter shouldn't report the same value", func() {
-			counter := &CumulativeCounter{Metric: "foo"}
+			counter := &CumulativeCounter{metric: "foo"}
 			reporter.Track(counter)
 			_, err := reporter.Report(context.Background())
 			So(err, ShouldEqual, nil)
@@ -272,14 +272,14 @@ func TestReporter(t *testing.T) {
 			ui32, cui32 := NewUint32(0), NewUint32(0)
 			ui64, cui64 := NewUint64(0), NewUint64(0)
 
-			mi32 := &WrappedCounter{Metric: "Int32", Value: i32}
-			mci32 := &WrappedCounter{Metric: "CumulativeInt32", Value: ci32}
-			mi64 := &WrappedCounter{Metric: "Int64", Value: i64}
-			mci64 := &WrappedCounter{Metric: "CumulativeInt64", Value: ci64}
-			mui32 := &WrappedCounter{Metric: "Uint32", Value: ui32}
-			mcui32 := &WrappedCounter{Metric: "CumulativeUint32", Value: cui32}
-			mui64 := &WrappedCounter{Metric: "Uint64", Value: ui64}
-			mcui64 := &WrappedCounter{Metric: "CumulativeUint64", Value: cui64}
+			mi32 := &WrappedCounter{metric: "Int32", value: i32}
+			mci32 := &WrappedCounter{metric: "CumulativeInt32", value: ci32}
+			mi64 := &WrappedCounter{metric: "Int64", value: i64}
+			mci64 := &WrappedCounter{metric: "CumulativeInt64", value: ci64}
+			mui32 := &WrappedCounter{metric: "Uint32", value: ui32}
+			mcui32 := &WrappedCounter{metric: "CumulativeUint32", value: cui32}
+			mui64 := &WrappedCounter{metric: "Uint64", value: ui64}
+			mcui64 := &WrappedCounter{metric: "CumulativeUint64", value: cui64}
 
 			reporter.Track(mi32, mci32, mi64, mci64, mui32, mcui32, mui64, mcui64)
 
@@ -293,7 +293,7 @@ func TestReporter(t *testing.T) {
 				v, err := i32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				dp := mi32.dataPoint()
+				dp := mi32.DataPoint()
 				So(i32.Value(), ShouldEqual, dp.Value)
 
 				i32.Set(5)
@@ -301,7 +301,7 @@ func TestReporter(t *testing.T) {
 				v, err = i32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mi32.dataPoint()
+				dp = mi32.DataPoint()
 				So(i32.Value(), ShouldEqual, dp.Value)
 
 				i32.Inc(1)
@@ -309,7 +309,7 @@ func TestReporter(t *testing.T) {
 				v, err = i32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				dp = mi32.dataPoint()
+				dp = mi32.DataPoint()
 				So(i32.Value(), ShouldEqual, dp.Value)
 
 				i32.Subtract(1)
@@ -317,15 +317,15 @@ func TestReporter(t *testing.T) {
 				v, err = i32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mi32.dataPoint()
+				dp = mi32.DataPoint()
 				So(i32.Value(), ShouldEqual, dp.Value)
 
-				mi32.reset(3)
+				mi32.PostReportHook(3)
 				So(i32.Value(), ShouldEqual, 2)
 				v, err = i32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 2)
-				dp = mi32.dataPoint()
+				dp = mi32.DataPoint()
 				So(i32.Value(), ShouldEqual, dp.Value)
 			})
 
@@ -336,7 +336,7 @@ func TestReporter(t *testing.T) {
 				v, err := ci32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				dp := mci32.dataPoint()
+				dp := mci32.DataPoint()
 				So(ci32.Value(), ShouldEqual, dp.Value)
 
 				ci32.Set(5)
@@ -344,7 +344,7 @@ func TestReporter(t *testing.T) {
 				v, err = ci32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mci32.dataPoint()
+				dp = mci32.DataPoint()
 				So(ci32.Value(), ShouldEqual, dp.Value)
 
 				ci32.Inc(1)
@@ -352,7 +352,7 @@ func TestReporter(t *testing.T) {
 				v, err = ci32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				dp = mci32.dataPoint()
+				dp = mci32.DataPoint()
 				So(ci32.Value(), ShouldEqual, dp.Value)
 
 				ci32.Subtract(1)
@@ -360,15 +360,15 @@ func TestReporter(t *testing.T) {
 				v, err = ci32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mci32.dataPoint()
+				dp = mci32.DataPoint()
 				So(ci32.Value(), ShouldEqual, dp.Value)
 
-				mci32.reset(3)
+				mci32.PostReportHook(3)
 				So(ci32.Value(), ShouldEqual, 2)
 				v, err = ci32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 2)
-				dp = mci32.dataPoint()
+				dp = mci32.DataPoint()
 				So(ci32.Value(), ShouldEqual, dp.Value)
 			})
 
@@ -379,7 +379,7 @@ func TestReporter(t *testing.T) {
 				v, err := i64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				dp := mi64.dataPoint()
+				dp := mi64.DataPoint()
 				So(i64.Value(), ShouldEqual, dp.Value)
 
 				i64.Set(5)
@@ -387,7 +387,7 @@ func TestReporter(t *testing.T) {
 				v, err = i64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mi64.dataPoint()
+				dp = mi64.DataPoint()
 				So(i64.Value(), ShouldEqual, dp.Value)
 
 				i64.Inc(1)
@@ -395,7 +395,7 @@ func TestReporter(t *testing.T) {
 				v, err = i64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				dp = mi64.dataPoint()
+				dp = mi64.DataPoint()
 				So(i64.Value(), ShouldEqual, dp.Value)
 
 				i64.Subtract(1)
@@ -403,15 +403,15 @@ func TestReporter(t *testing.T) {
 				v, err = i64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mi64.dataPoint()
+				dp = mi64.DataPoint()
 				So(i64.Value(), ShouldEqual, dp.Value)
 
-				mi64.reset(3)
+				mi64.PostReportHook(3)
 				So(i64.Value(), ShouldEqual, 2)
 				v, err = i64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 2)
-				dp = mi64.dataPoint()
+				dp = mi64.DataPoint()
 				So(i64.Value(), ShouldEqual, dp.Value)
 			})
 
@@ -422,7 +422,7 @@ func TestReporter(t *testing.T) {
 				v, err := ci64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				dp := mci64.dataPoint()
+				dp := mci64.DataPoint()
 				So(ci64.Value(), ShouldEqual, dp.Value)
 
 				ci64.Set(5)
@@ -430,7 +430,7 @@ func TestReporter(t *testing.T) {
 				v, err = ci64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mci64.dataPoint()
+				dp = mci64.DataPoint()
 				So(ci64.Value(), ShouldEqual, dp.Value)
 
 				ci64.Inc(1)
@@ -438,7 +438,7 @@ func TestReporter(t *testing.T) {
 				v, err = ci64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				dp = mci64.dataPoint()
+				dp = mci64.DataPoint()
 				So(ci64.Value(), ShouldEqual, dp.Value)
 
 				ci64.Subtract(1)
@@ -446,15 +446,15 @@ func TestReporter(t *testing.T) {
 				v, err = ci64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mci64.dataPoint()
+				dp = mci64.DataPoint()
 				So(ci64.Value(), ShouldEqual, dp.Value)
 
-				mci64.reset(3)
+				mci64.PostReportHook(3)
 				So(ci64.Value(), ShouldEqual, 2)
 				v, err = ci64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 2)
-				dp = mci64.dataPoint()
+				dp = mci64.DataPoint()
 				So(ci64.Value(), ShouldEqual, dp.Value)
 			})
 
@@ -465,7 +465,7 @@ func TestReporter(t *testing.T) {
 				v, err := ui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				dp := mui32.dataPoint()
+				dp := mui32.DataPoint()
 				So(ui32.Value(), ShouldEqual, dp.Value)
 
 				ui32.Set(5)
@@ -473,7 +473,7 @@ func TestReporter(t *testing.T) {
 				v, err = ui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mui32.dataPoint()
+				dp = mui32.DataPoint()
 				So(ui32.Value(), ShouldEqual, dp.Value)
 
 				ui32.Inc(1)
@@ -481,7 +481,7 @@ func TestReporter(t *testing.T) {
 				v, err = ui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				dp = mui32.dataPoint()
+				dp = mui32.DataPoint()
 				So(ui32.Value(), ShouldEqual, dp.Value)
 
 				ui32.Subtract(1)
@@ -489,15 +489,15 @@ func TestReporter(t *testing.T) {
 				v, err = ui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mui32.dataPoint()
+				dp = mui32.DataPoint()
 				So(ui32.Value(), ShouldEqual, dp.Value)
 
-				mui32.reset(3)
+				mui32.PostReportHook(3)
 				So(ui32.Value(), ShouldEqual, 2)
 				v, err = ui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 2)
-				dp = mui32.dataPoint()
+				dp = mui32.DataPoint()
 				So(ui32.Value(), ShouldEqual, dp.Value)
 			})
 
@@ -508,7 +508,7 @@ func TestReporter(t *testing.T) {
 				v, err := cui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				dp := mcui32.dataPoint()
+				dp := mcui32.DataPoint()
 				So(cui32.Value(), ShouldEqual, dp.Value)
 
 				cui32.Set(5)
@@ -516,7 +516,7 @@ func TestReporter(t *testing.T) {
 				v, err = cui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mcui32.dataPoint()
+				dp = mcui32.DataPoint()
 				So(cui32.Value(), ShouldEqual, dp.Value)
 
 				cui32.Inc(1)
@@ -524,7 +524,7 @@ func TestReporter(t *testing.T) {
 				v, err = cui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				dp = mcui32.dataPoint()
+				dp = mcui32.DataPoint()
 				So(cui32.Value(), ShouldEqual, dp.Value)
 
 				cui32.Subtract(1)
@@ -532,15 +532,15 @@ func TestReporter(t *testing.T) {
 				v, err = cui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mcui32.dataPoint()
+				dp = mcui32.DataPoint()
 				So(cui32.Value(), ShouldEqual, dp.Value)
 
-				mcui32.reset(3)
+				mcui32.PostReportHook(3)
 				So(cui32.Value(), ShouldEqual, 2)
 				v, err = cui32.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 2)
-				dp = mcui32.dataPoint()
+				dp = mcui32.DataPoint()
 				So(cui32.Value(), ShouldEqual, dp.Value)
 			})
 
@@ -551,7 +551,7 @@ func TestReporter(t *testing.T) {
 				v, err := ui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				dp := mui64.dataPoint()
+				dp := mui64.DataPoint()
 				So(ui64.Value(), ShouldEqual, dp.Value)
 
 				ui64.Set(5)
@@ -559,7 +559,7 @@ func TestReporter(t *testing.T) {
 				v, err = ui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mui64.dataPoint()
+				dp = mui64.DataPoint()
 				So(ui64.Value(), ShouldEqual, dp.Value)
 
 				ui64.Inc(1)
@@ -567,7 +567,7 @@ func TestReporter(t *testing.T) {
 				v, err = ui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				dp = mui64.dataPoint()
+				dp = mui64.DataPoint()
 				So(ui64.Value(), ShouldEqual, dp.Value)
 
 				ui64.Subtract(1)
@@ -575,15 +575,15 @@ func TestReporter(t *testing.T) {
 				v, err = ui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mui64.dataPoint()
+				dp = mui64.DataPoint()
 				So(ui64.Value(), ShouldEqual, dp.Value)
 
-				mui64.reset(3)
+				mui64.PostReportHook(3)
 				So(ui64.Value(), ShouldEqual, 2)
 				v, err = ui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 2)
-				dp = mui64.dataPoint()
+				dp = mui64.DataPoint()
 				So(ui64.Value(), ShouldEqual, dp.Value)
 			})
 
@@ -594,7 +594,7 @@ func TestReporter(t *testing.T) {
 				v, err := cui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
-				dp := mcui64.dataPoint()
+				dp := mcui64.DataPoint()
 				So(cui64.Value(), ShouldEqual, dp.Value)
 
 				cui64.Set(5)
@@ -602,7 +602,7 @@ func TestReporter(t *testing.T) {
 				v, err = cui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mcui64.dataPoint()
+				dp = mcui64.DataPoint()
 				So(cui64.Value(), ShouldEqual, dp.Value)
 
 				cui64.Inc(1)
@@ -610,7 +610,7 @@ func TestReporter(t *testing.T) {
 				v, err = cui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 6)
-				dp = mcui64.dataPoint()
+				dp = mcui64.DataPoint()
 				So(cui64.Value(), ShouldEqual, dp.Value)
 
 				cui64.Subtract(1)
@@ -618,15 +618,15 @@ func TestReporter(t *testing.T) {
 				v, err = cui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
-				dp = mcui64.dataPoint()
+				dp = mcui64.DataPoint()
 				So(cui64.Value(), ShouldEqual, dp.Value)
 
-				mcui64.reset(3)
+				mcui64.PostReportHook(3)
 				So(cui64.Value(), ShouldEqual, 2)
 				v, err = cui64.Get()
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 2)
-				dp = mcui64.dataPoint()
+				dp = mcui64.DataPoint()
 				So(cui64.Value(), ShouldEqual, dp.Value)
 			})
 		})
@@ -689,34 +689,35 @@ func ExampleReporter() {
 	})
 
 	gval := 0
-	gauge := &WrappedGauge{
-		Metric: "TestGauge",
-		Value:  Value(&gval),
-		Dimensions: map[string]string{
+	gauge := WrapGauge(
+		"TestGauge",
+		map[string]string{
 			"test_gauge_dimension0": "gauge0",
 			"test_gauge_dimension1": "gauge1",
 		},
-	}
+		Value(&gval),
+	)
 	reporter.Track(gauge)
 
-	i := &Counter{
-		Metric: "TestInt64",
-		Dimensions: map[string]string{
+	i := NewCounter(
+		"TestInt64",
+		map[string]string{
 			"test_incrementer_dimension0": "incrementer0",
 			"test_incrementer_dimension1": "incrementer1",
 		},
-	}
+		0,
+	)
 	reporter.Track(i)
 
 	cval := int64(0)
-	cumulative := &WrappedCumulativeCounter{
-		Metric: "TestCumulative",
-		Value:  Value(&cval),
-		Dimensions: map[string]string{
+	cumulative := WrapCumulativeCounter(
+		"TestCumulative",
+		map[string]string{
 			"test_cumulative_dimension0": "cumulative0",
 			"test_cumulative_dimension1": "cumulative1",
 		},
-	}
+		Value(&cval),
+	)
 	reporter.Track(cumulative)
 
 	atomic.AddInt64(&cval, 1)

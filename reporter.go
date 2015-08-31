@@ -5,16 +5,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coreos/fleet/log"
+	"log"
+
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
 )
 
+// Metrics represent producers of datapoints (i.e., metric time
+// series).  While individual datapoints are not goroutine-safe (they
+// are owned by one goroutine at a time), metrics should be.
 type Metric interface {
-	// dataPoint returns the value of the metric at the current
+	// DataPoint returns the value of the metric at the current
 	// point in time.  If it has no value at the present point in
-	// time, return nil
-	dataPoint() *dataPoint
+	// time, return nil.
+	DataPoint() *DataPoint
 }
 
 type HookedMetric interface {
@@ -25,7 +29,7 @@ type HookedMetric interface {
 // DataPointCallback is a functional callback that can be passed to
 // DataPointCallback as a way to have the caller calculate and return
 // their own datapoints
-type DataPointCallback func() []dataPoint
+type DataPointCallback func() []DataPoint
 
 // Reporter is an object that tracks DataPoints and manages a Client. It is the
 // recommended way to send data to SignalFX.
@@ -38,7 +42,7 @@ type Reporter struct {
 	preReportCallbacks []func()
 	datapointCallbacks []DataPointCallback
 	mu                 sync.Mutex
-	oneShots           []dataPoint
+	oneShots           []DataPoint
 	metricPrefix       string
 }
 
@@ -155,7 +159,7 @@ func (r *Reporter) AddDataPointsCallback(f DataPointCallback) {
 // will be run before building the dataset to send. DataPoint
 // callbacks will be executed and added to the dataset, but do not
 // become tracked by the Reporter.
-func (r *Reporter) Report(ctx context.Context) ([]dataPoint, error) {
+func (r *Reporter) Report(ctx context.Context) ([]DataPoint, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	} else if ctx.Err() != nil {
@@ -190,7 +194,7 @@ func (r *Reporter) Report(ctx context.Context) ([]dataPoint, error) {
 	// experience shows otherwise.
 	retLen := len(r.datapointCallbacks) + len(r.buckets)*5 +
 		len(r.metrics) + len(r.oneShots)
-	ret := make([]dataPoint, 0, retLen)
+	ret := make([]DataPoint, 0, retLen)
 
 	for _, f := range r.datapointCallbacks {
 		for _, dp := range f() {
@@ -214,7 +218,7 @@ func (r *Reporter) Report(ctx context.Context) ([]dataPoint, error) {
 
 	// append all of the tracked metrics
 	for metric := range r.metrics {
-		dp := metric.dataPoint()
+		dp := metric.DataPoint()
 		if dp == nil {
 			continue
 		}
@@ -256,7 +260,7 @@ func (r *Reporter) Report(ctx context.Context) ([]dataPoint, error) {
 	return ret, nil
 }
 
-func (r *Reporter) Add(dp dataPoint) {
+func (r *Reporter) Add(dp DataPoint) {
 	r.lock()
 	defer r.unlock()
 
@@ -267,9 +271,9 @@ func (r *Reporter) Add(dp dataPoint) {
 // delta since the last report.
 func (r *Reporter) Inc(metric string, dimensions map[string]string, delta uint64) {
 	if delta > math.MaxInt64 {
-		log.Errorf("counter increment %d is too large for int64", delta)
+		log.Fatalf("counter increment %d is too large for int64", delta)
 	}
-	r.Add(dataPoint{
+	r.Add(DataPoint{
 		Metric:     metric,
 		Dimensions: dimensions,
 		Type:       CounterType,
@@ -280,7 +284,7 @@ func (r *Reporter) Inc(metric string, dimensions map[string]string, delta uint64
 // Record adds a one-shot data point for a gauge with the indicated
 // value at this point in time.
 func (r *Reporter) Record(metric string, dimensions map[string]string, value int64) {
-	r.Add(dataPoint{
+	r.Add(DataPoint{
 		Metric:     metric,
 		Dimensions: dimensions,
 		Type:       GaugeType,
@@ -291,7 +295,7 @@ func (r *Reporter) Record(metric string, dimensions map[string]string, value int
 // Sample adds a one-shot data point for a cumulative counter with the
 // indicated value at this point in time.
 func (r *Reporter) Sample(metric string, dimensions map[string]string, value int64) {
-	r.Add(dataPoint{
+	r.Add(DataPoint{
 		Metric:     metric,
 		Dimensions: dimensions,
 		Type:       CumulativeCounterType,
@@ -311,7 +315,7 @@ func (r *Reporter) RunInBackground(interval time.Duration) (cancel func()) {
 			case <-ticker.C:
 				_, err := r.Report(context.Background())
 				if err != nil && err != sfxproto.ErrMarshalNoData {
-					log.Error(err)
+					log.Print(err)
 				}
 			case <-done:
 				return

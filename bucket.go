@@ -252,8 +252,8 @@ func (b *Bucket) dimFor(defaultDims map[string]string, rollup string) map[string
 // since the last report, it returns 0 for count, sum and
 // sum-of-squares, omitting max and min.  If the count is higher than
 // may be represented in an int64, then the count will be omitted.
-func (b *Bucket) DataPoints() []dataPoint {
-	dps := make([]dataPoint, 0, 5)
+func (b *Bucket) DataPoints() []DataPoint {
+	dps := make([]DataPoint, 0, 5)
 	cnt := atomic.SwapUint64(&b.count, 0)
 	min := atomic.SwapInt64(&b.min, math.MaxInt64)
 	max := atomic.SwapInt64(&b.max, math.MinInt64)
@@ -261,7 +261,7 @@ func (b *Bucket) DataPoints() []dataPoint {
 	sos := atomic.SwapInt64(&b.sumOfSquares, 0)
 	if cnt != 0 {
 		if !b.disabledMetrics[BucketMetricMin] {
-			dp := dataPoint{
+			dp := DataPoint{
 				Metric:     b.metric,
 				Dimensions: b.dimensions,
 				Type:       GaugeType,
@@ -270,7 +270,7 @@ func (b *Bucket) DataPoints() []dataPoint {
 			dps = append(dps, dp)
 		}
 		if !b.disabledMetrics[BucketMetricMax] {
-			dp := dataPoint{
+			dp := DataPoint{
 				Metric:     b.metric,
 				Dimensions: b.dimensions,
 				Type:       GaugeType,
@@ -280,7 +280,7 @@ func (b *Bucket) DataPoints() []dataPoint {
 		}
 	}
 	if !b.disabledMetrics[BucketMetricCount] && cnt <= math.MaxInt64 {
-		dp := dataPoint{
+		dp := DataPoint{
 			Metric:     b.metric,
 			Dimensions: b.dimensions,
 			Type:       CounterType,
@@ -289,7 +289,7 @@ func (b *Bucket) DataPoints() []dataPoint {
 		dps = append(dps, dp)
 	}
 	if !b.disabledMetrics[BucketMetricSum] {
-		dp := dataPoint{
+		dp := DataPoint{
 			Metric:     b.metric,
 			Dimensions: b.dimensions,
 			Type:       GaugeType,
@@ -298,7 +298,7 @@ func (b *Bucket) DataPoints() []dataPoint {
 		dps = append(dps, dp)
 	}
 	if !b.disabledMetrics[BucketMetricSumOfSquares] {
-		dp := dataPoint{
+		dp := DataPoint{
 			Metric:     b.metric,
 			Dimensions: b.dimensions,
 			Type:       GaugeType,

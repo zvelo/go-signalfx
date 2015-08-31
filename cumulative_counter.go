@@ -7,16 +7,20 @@ import (
 )
 
 type CumulativeCounter struct {
-	Metric               string
-	Dimensions           map[string]string
+	metric               string
+	dimensions           map[string]string
 	value, previousValue uint64
+}
+
+func NewCumulativeCounter(metric string, dimensions map[string]string, value uint64) *CumulativeCounter {
+	return &CumulativeCounter{metric: metric, dimensions: dimensions, value: value}
 }
 
 func (cc *CumulativeCounter) Sample(delta uint64) {
 	atomic.StoreUint64(&cc.value, delta)
 }
 
-func (cc *CumulativeCounter) dataPoint() *dataPoint {
+func (cc *CumulativeCounter) DataPoint() *DataPoint {
 	previous := atomic.LoadUint64(&cc.previousValue)
 	value := atomic.LoadUint64(&cc.value)
 	if value == previous {
@@ -25,11 +29,11 @@ func (cc *CumulativeCounter) dataPoint() *dataPoint {
 	if value > math.MaxInt64 {
 		return nil
 	}
-	return &dataPoint{
-		Metric:     cc.Metric,
+	return &DataPoint{
+		Metric:     cc.metric,
 		Timestamp:  time.Now(),
 		Type:       CumulativeCounterType,
-		Dimensions: cc.Dimensions,
+		Dimensions: cc.dimensions,
 		Value:      int64(value),
 	}
 }
@@ -52,9 +56,9 @@ func (cc *CumulativeCounter) PostReportHook(v int64) {
 }
 
 type WrappedCumulativeCounter struct {
-	Metric               string
-	Dimensions           map[string]string
-	Value                Getter
+	metric               string
+	dimensions           map[string]string
+	wrappedValue         Getter
 	value, previousValue uint64
 }
 
@@ -64,15 +68,15 @@ func WrapCumulativeCounter(
 	value Getter,
 ) *WrappedCumulativeCounter {
 	return &WrappedCumulativeCounter{
-		Metric:     metric,
-		Dimensions: dimensions,
-		Value:      value,
+		metric:       metric,
+		dimensions:   dimensions,
+		wrappedValue: value,
 	}
 }
 
-func (cc *WrappedCumulativeCounter) dataPoint() *dataPoint {
+func (cc *WrappedCumulativeCounter) DataPoint() *DataPoint {
 	previous := atomic.LoadUint64(&cc.previousValue)
-	gottenValue, err := cc.Value.Get()
+	gottenValue, err := cc.wrappedValue.Get()
 	if err != nil {
 		return nil
 	}
@@ -86,11 +90,11 @@ func (cc *WrappedCumulativeCounter) dataPoint() *dataPoint {
 	if uint64(value) == previous {
 		return nil
 	}
-	return &dataPoint{
-		Metric:     cc.Metric,
+	return &DataPoint{
+		Metric:     cc.metric,
 		Timestamp:  time.Now(),
 		Type:       CumulativeCounterType,
-		Dimensions: cc.Dimensions,
+		Dimensions: cc.dimensions,
 		Value:      int64(value),
 	}
 }
