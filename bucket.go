@@ -237,14 +237,11 @@ func (b *Bucket) Add(val int64) {
 	}
 }
 
-func (b *Bucket) dimFor(defaultDims map[string]string, rollup string) map[string]string {
+func (b *Bucket) dimFor(rollup string) map[string]string {
 	b.lock()
 	defer b.unlock()
 
-	dims := sfxproto.Dimensions(defaultDims).Append(b.dimensions)
-	dims["rollup"] = rollup
-
-	return dims
+	return sfxproto.Dimensions(map[string]string{"rollup": rollup}).Append(b.dimensions)
 }
 
 // DataPoints returns a DataPoints object with DataPoint values for
@@ -265,7 +262,7 @@ func (b *Bucket) DataPoints() []DataPoint {
 		if !b.disabledMetrics[BucketMetricMin] {
 			dp := DataPoint{
 				Metric:     b.metric,
-				Dimensions: b.dimensions,
+				Dimensions: b.dimFor("min"),
 				Type:       GaugeType,
 				Value:      min,
 				Timestamp:  timestamp,
@@ -275,7 +272,7 @@ func (b *Bucket) DataPoints() []DataPoint {
 		if !b.disabledMetrics[BucketMetricMax] {
 			dp := DataPoint{
 				Metric:     b.metric,
-				Dimensions: b.dimensions,
+				Dimensions: b.dimFor("max"),
 				Type:       GaugeType,
 				Value:      max,
 				Timestamp:  timestamp,
@@ -286,7 +283,7 @@ func (b *Bucket) DataPoints() []DataPoint {
 	if !b.disabledMetrics[BucketMetricCount] && cnt <= math.MaxInt64 {
 		dp := DataPoint{
 			Metric:     b.metric,
-			Dimensions: b.dimensions,
+			Dimensions: b.dimFor("count"),
 			Type:       CounterType,
 			Value:      int64(cnt),
 			Timestamp:  timestamp,
@@ -296,7 +293,7 @@ func (b *Bucket) DataPoints() []DataPoint {
 	if !b.disabledMetrics[BucketMetricSum] {
 		dp := DataPoint{
 			Metric:     b.metric,
-			Dimensions: b.dimensions,
+			Dimensions: b.dimFor("sum"),
 			Type:       GaugeType,
 			Value:      sum,
 			Timestamp:  timestamp,
@@ -306,7 +303,7 @@ func (b *Bucket) DataPoints() []DataPoint {
 	if !b.disabledMetrics[BucketMetricSumOfSquares] {
 		dp := DataPoint{
 			Metric:     b.metric,
-			Dimensions: b.dimensions,
+			Dimensions: b.dimFor("sumofsquares"),
 			Type:       GaugeType,
 			Value:      sos,
 			Timestamp:  timestamp,

@@ -126,6 +126,20 @@ func TestBucket(t *testing.T) {
 			So(len(b.DataPoints()), ShouldEqual, 5)
 		})
 
+		Convey("rollup dimensions should be added", func() {
+			b.Add(1)
+			b.Add(2)
+			b.Add(3)
+
+			datapoints := b.DataPoints()
+			So(len(datapoints), ShouldEqual, 5)
+			So(datapoints[0].Dimensions["rollup"], ShouldResemble, "min")
+			So(datapoints[1].Dimensions["rollup"], ShouldResemble, "max")
+			So(datapoints[2].Dimensions["rollup"], ShouldResemble, "count")
+			So(datapoints[3].Dimensions["rollup"], ShouldResemble, "sum")
+			So(datapoints[4].Dimensions["rollup"], ShouldResemble, "sumofsquares")
+		})
+
 		Convey("bucket datapoints should be sensible", func() {
 			t := time.Now()
 			dps := b.DataPoints()
