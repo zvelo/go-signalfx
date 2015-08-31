@@ -17,14 +17,18 @@ var (
 	ErrNoMetricName = fmt.Errorf("no metric name")
 )
 
+// MetricType exports sfxproto.MetricType to client code.
 type MetricType sfxproto.MetricType
 
+// Only counters, cumulative counters and gauges are
+// currently-supported metric types.
 const (
 	CounterType           MetricType = MetricType(sfxproto.MetricType_COUNTER)
 	CumulativeCounterType MetricType = MetricType(sfxproto.MetricType_CUMULATIVE_COUNTER)
 	GaugeType             MetricType = MetricType(sfxproto.MetricType_GAUGE)
 )
 
+// A DataPoint represents a single datum within a metric time series.
 type DataPoint struct {
 	Metric     string
 	Type       MetricType
@@ -33,6 +37,9 @@ type DataPoint struct {
 	Dimensions map[string]string
 }
 
+// protoDataPoint returns a sfxproto.DataPoint representing the
+// indicated DataPoint.  It reads, but does not modify, the data
+// point's dimensions.
 func (dp DataPoint) protoDataPoint(
 	metricPrefix string,
 	dimensions []*sfxproto.Dimension,

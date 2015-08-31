@@ -10,6 +10,7 @@ type Getter interface {
 	Get() (interface{}, error)
 }
 
+// A Subtractor is a Getter which is also subtractable.
 type Subtractor interface {
 	Getter
 	Subtract(int64)
@@ -76,6 +77,7 @@ func (v *Int32) Value() int32 {
 	return atomic.LoadInt32((*int32)(v))
 }
 
+// Subtract atomically subtracts delta from an Int32.
 func (v *Int32) Subtract(delta int64) {
 	atomic.AddInt32((*int32)(v), int32(-delta))
 }
@@ -113,6 +115,7 @@ func (v *Int64) Value() int64 {
 	return atomic.LoadInt64((*int64)(v))
 }
 
+// Subtract atomically subtracts delta from an Int64.
 func (v *Int64) Subtract(delta int64) {
 	atomic.AddInt64((*int64)(v), -delta)
 }

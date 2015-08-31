@@ -11,16 +11,23 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Metrics represent producers of datapoints (i.e., metric time
+// A Metric represents a producer of datapoints (i.e., a metric time
 // series).  While individual datapoints are not goroutine-safe (they
 // are owned by one goroutine at a time), metrics should be.
 type Metric interface {
 	// DataPoint returns the value of the metric at the current
 	// point in time.  If it has no value at the present point in
-	// time, return nil.
+	// time, return nil.  A Reporter will add its metric prefix
+	// and default dimensions to the metric and dimensions
+	// indicated in the DataPoint.
 	DataPoint() *DataPoint
 }
 
+// A HookedMetric has a PostReportHook method, which is called by
+// Reporter.Report after successfully reporting a value.  The intended
+// use case is with Counters and CumulativeCounters, which need to
+// reset some saved state once it's been reported, but it might be
+// useful for other user-specified metric types.
 type HookedMetric interface {
 	Metric
 	PostReportHook(reportedValue int64)
@@ -155,10 +162,10 @@ func (r *Reporter) AddDataPointsCallback(f DataPointCallback) {
 	r.datapointCallbacks = append(r.datapointCallbacks, f)
 }
 
-// Report sends all tracked DataPoints to SignalFX. PreReportCallbacks
-// will be run before building the dataset to send. DataPoint
-// callbacks will be executed and added to the dataset, but do not
-// become tracked by the Reporter.
+// Report sends all tracked DataPoints to SignalFX.
+// PreReportCallbacks will be run before building the dataset to send.
+// DataPoint callbacks will be executed and added to the dataset, but
+// do not become tracked by the Reporter.
 func (r *Reporter) Report(ctx context.Context) ([]DataPoint, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -211,10 +218,10 @@ func (r *Reporter) Report(ctx context.Context) ([]DataPoint, error) {
 		ret = append(ret, dp)
 	}
 
-	hookedMetrics := make([]struct {
+	var hookedMetrics []struct {
 		m HookedMetric
 		v int64
-	}, 0)
+	}
 
 	// append all of the tracked metrics
 	for metric := range r.metrics {
@@ -260,6 +267,8 @@ func (r *Reporter) Report(ctx context.Context) ([]DataPoint, error) {
 	return ret, nil
 }
 
+// Add adds a single DataPoint to a Reporter; it will be reported and,
+// once successfully reported, deleted.
 func (r *Reporter) Add(dp DataPoint) {
 	r.lock()
 	defer r.unlock()
@@ -314,7 +323,8 @@ func (r *Reporter) RunInBackground(interval time.Duration) (cancel func()) {
 			select {
 			case <-ticker.C:
 				_, err := r.Report(context.Background())
-				if err != nil && err != sfxproto.ErrMarshalNoData {
+				if err != nil &&
+					err != sfxproto.ErrMarshalNoData {
 					log.Print(err)
 				}
 			case <-done:
