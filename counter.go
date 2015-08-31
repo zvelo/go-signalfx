@@ -92,8 +92,8 @@ func WrapCounter(
 }
 
 // DataPoint returns a DataPoint representing the current state of the
-// wrapped counter value.  If that current state is negative, then no
-// DataPoint will be returned.
+// wrapped counter value.  If that current state is negative or zero,
+// then no DataPoint will be returned.
 func (c *WrappedCounter) DataPoint() *DataPoint {
 	gottenValue, err := c.value.Get()
 	if err != nil {
@@ -103,7 +103,7 @@ func (c *WrappedCounter) DataPoint() *DataPoint {
 	if err != nil {
 		return nil
 	}
-	if value < 0 {
+	if value <= 0 {
 		return nil
 	}
 	return &DataPoint{

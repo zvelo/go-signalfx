@@ -3,6 +3,7 @@ package signalfx
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -125,6 +126,16 @@ func TestReporter(t *testing.T) {
 			So(cb, ShouldEqual, 3)
 		})
 
+		Convey("metric prefixes should work", func() {
+			reporter.SetPrefix("prefix")
+			reporter.Inc("foo", map[string]string{"bar": "baz"}, 1)
+			dps, err := reporter.Report(context.Background())
+			So(err, ShouldBeNil)
+			So(len(dps), ShouldEqual, 1)
+			pdp := dps[0].protoDataPoint(reporter.metricPrefix, nil)
+			So(*pdp.Metric, ShouldEqual, "prefixfoo")
+		})
+
 		Convey("reporting should work", func() {
 			bucket := reporter.NewBucket("bucket", nil)
 			bucket.Add(2)
@@ -236,6 +247,32 @@ func TestReporter(t *testing.T) {
 			_, err = r.Report(context.Background())
 			So(err, ShouldBeNil)
 			So(tw.counter, ShouldEqual, 1)
+
+			So(func() {
+				reporter.Inc("foo", nil, math.MaxInt64+1)
+			}, ShouldPanic)
+		})
+
+		Convey("Record should handle cheap one-shot gauge values", func() {
+			reporter.Record("foo", nil, 12)
+			dps, err := reporter.Report(nil)
+			So(err, ShouldBeNil)
+			So(len(dps), ShouldEqual, 1)
+			dp := dps[0]
+			So(dp.Metric, ShouldEqual, "foo")
+			So(dp.Type, ShouldEqual, GaugeType)
+			So(dp.Value, ShouldEqual, 12)
+		})
+
+		Convey("Sample should handle cheap one-shot cumulative counter samples", func() {
+			reporter.Sample("foo", nil, 12)
+			dps, err := reporter.Report(nil)
+			So(err, ShouldBeNil)
+			So(len(dps), ShouldEqual, 1)
+			dp := dps[0]
+			So(dp.Metric, ShouldEqual, "foo")
+			So(dp.Type, ShouldEqual, CumulativeCounterType)
+			So(dp.Value, ShouldEqual, 12)
 		})
 
 		Convey("report does not include broken Getters", func() {
@@ -294,7 +331,7 @@ func TestReporter(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
 				dp := mi32.DataPoint()
-				So(i32.Value(), ShouldEqual, dp.Value)
+				So(dp, ShouldBeNil)
 
 				i32.Set(5)
 				So(i32.Value(), ShouldEqual, 5)
@@ -302,6 +339,7 @@ func TestReporter(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 5)
 				dp = mi32.DataPoint()
+				So(dp, ShouldNotBeNil)
 				So(i32.Value(), ShouldEqual, dp.Value)
 
 				i32.Inc(1)
@@ -337,7 +375,7 @@ func TestReporter(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
 				dp := mci32.DataPoint()
-				So(ci32.Value(), ShouldEqual, dp.Value)
+				So(dp, ShouldBeNil)
 
 				ci32.Set(5)
 				So(ci32.Value(), ShouldEqual, 5)
@@ -380,7 +418,7 @@ func TestReporter(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
 				dp := mi64.DataPoint()
-				So(i64.Value(), ShouldEqual, dp.Value)
+				So(dp, ShouldBeNil)
 
 				i64.Set(5)
 				So(i64.Value(), ShouldEqual, 5)
@@ -423,7 +461,7 @@ func TestReporter(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
 				dp := mci64.DataPoint()
-				So(ci64.Value(), ShouldEqual, dp.Value)
+				So(dp, ShouldBeNil)
 
 				ci64.Set(5)
 				So(ci64.Value(), ShouldEqual, 5)
@@ -466,7 +504,7 @@ func TestReporter(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
 				dp := mui32.DataPoint()
-				So(ui32.Value(), ShouldEqual, dp.Value)
+				So(dp, ShouldBeNil)
 
 				ui32.Set(5)
 				So(ui32.Value(), ShouldEqual, 5)
@@ -509,7 +547,7 @@ func TestReporter(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
 				dp := mcui32.DataPoint()
-				So(cui32.Value(), ShouldEqual, dp.Value)
+				So(dp, ShouldBeNil)
 
 				cui32.Set(5)
 				So(cui32.Value(), ShouldEqual, 5)
@@ -552,7 +590,7 @@ func TestReporter(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
 				dp := mui64.DataPoint()
-				So(ui64.Value(), ShouldEqual, dp.Value)
+				So(dp, ShouldBeNil)
 
 				ui64.Set(5)
 				So(ui64.Value(), ShouldEqual, 5)
@@ -595,7 +633,7 @@ func TestReporter(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(v, ShouldEqual, 0)
 				dp := mcui64.DataPoint()
-				So(cui64.Value(), ShouldEqual, dp.Value)
+				So(dp, ShouldBeNil)
 
 				cui64.Set(5)
 				So(cui64.Value(), ShouldEqual, 5)

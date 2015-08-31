@@ -125,7 +125,7 @@ func (r *Reporter) Untrack(m ...Metric) {
 // NewBucket creates a new Bucket object that is tracked by the Reporter.
 // Buckets are goroutine safe.
 func (r *Reporter) NewBucket(metric string, dimensions map[string]string) *Bucket {
-	ret := NewBucket(r.metricPrefix+metric, dimensions)
+	ret := NewBucket(metric, dimensions)
 
 	r.lock()
 	defer r.unlock()
@@ -280,7 +280,7 @@ func (r *Reporter) Add(dp DataPoint) {
 // delta since the last report.
 func (r *Reporter) Inc(metric string, dimensions map[string]string, delta uint64) {
 	if delta > math.MaxInt64 {
-		log.Fatalf("counter increment %d is too large for int64", delta)
+		log.Panicf("counter increment %d is too large for int64", delta)
 	}
 	r.Add(DataPoint{
 		Metric:     metric,

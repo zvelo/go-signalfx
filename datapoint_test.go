@@ -68,7 +68,7 @@ func TestDataPoint(t *testing.T) {
 			c0 := WrapCounter("counter", nil, v)
 			So(c0, ShouldNotBeNil)
 			cdp0 := c0.DataPoint()
-			So(cdp0.Value, ShouldEqual, 0)
+			So(cdp0, ShouldBeNil)
 
 			*i++
 			cdp0 = c0.DataPoint()
