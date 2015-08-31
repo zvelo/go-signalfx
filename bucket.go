@@ -9,17 +9,17 @@ import (
 	"github.com/zvelo/go-signalfx/sfxproto"
 )
 
-var (
+const (
 	// BucketMetricCount represents the count of datapoints seen
-	BucketMetricCount = 1
+	BucketMetricCount = iota
 	// BucketMetricMin represents the smallest datapoint seen
-	BucketMetricMin = 2
+	BucketMetricMin = iota
 	// BucketMetricMax represents the largest datapoint seen
-	BucketMetricMax = 3
+	BucketMetricMax = iota
 	// BucketMetricSum represents the sum of all datapoints seen
-	BucketMetricSum = 4
+	BucketMetricSum = iota
 	// BucketMetricSumOfSquares represents the sum of squares of all datapoints seen
-	BucketMetricSumOfSquares = 5
+	BucketMetricSumOfSquares = iota
 )
 
 // A Bucket trakcs groups of values, reporting metrics as gauges and
