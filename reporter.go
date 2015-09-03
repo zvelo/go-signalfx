@@ -1,6 +1,7 @@
 package signalfx
 
 import (
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -290,9 +291,9 @@ func (r *Reporter) Add(dp DataPoint) {
 // Inc adds a one-shot data point for a counter with the indicated
 // delta since the last report.  If delta is greater than the maximum
 // possible int64, Inc will panic.
-func (r *Reporter) Inc(metric string, dimensions map[string]string, delta uint64) {
+func (r *Reporter) Inc(metric string, dimensions map[string]string, delta uint64) error {
 	if delta > math.MaxInt64 {
-		log.Panicf("counter increment %d is too large for int64", delta)
+		return fmt.Errorf("counter increment %d is too large for int64", delta)
 	}
 	r.Add(DataPoint{
 		Metric:     metric,
@@ -301,11 +302,12 @@ func (r *Reporter) Inc(metric string, dimensions map[string]string, delta uint64
 		Value:      int64(delta),
 		Timestamp:  time.Now(),
 	})
+	return nil
 }
 
 // Record adds a one-shot data point for a gauge with the indicated
 // value at this point in time.
-func (r *Reporter) Record(metric string, dimensions map[string]string, value int64) {
+func (r *Reporter) Record(metric string, dimensions map[string]string, value int64) error {
 	r.Add(DataPoint{
 		Metric:     metric,
 		Dimensions: dimensions,
@@ -313,13 +315,14 @@ func (r *Reporter) Record(metric string, dimensions map[string]string, value int
 		Value:      value,
 		Timestamp:  time.Now(),
 	})
+	return nil
 }
 
 // Sample adds a one-shot data point for a cumulative counter with the
 // indicated value at this point in time.
-func (r *Reporter) Sample(metric string, dimensions map[string]string, value uint64) {
+func (r *Reporter) Sample(metric string, dimensions map[string]string, value uint64) error {
 	if value > math.MaxInt64 {
-		log.Panicf("counter value %d is too large for int64", value)
+		return fmt.Errorf("counter value %d is too large for int64", value)
 	}
 	r.Add(DataPoint{
 		Metric:     metric,
@@ -328,6 +331,7 @@ func (r *Reporter) Sample(metric string, dimensions map[string]string, value uin
 		Value:      int64(value),
 		Timestamp:  time.Now(),
 	})
+	return nil
 }
 
 // RunInBackground starts a goroutine which calls Reporter.Report on

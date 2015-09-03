@@ -251,9 +251,8 @@ func TestReporter(t *testing.T) {
 			So(len(dps), ShouldEqual, 1)
 			So(dps[0].Timestamp.After(timestamp), ShouldBeTrue)
 
-			So(func() {
-				reporter.Inc("foo", nil, math.MaxInt64+1)
-			}, ShouldPanic)
+			err = reporter.Inc("foo", nil, math.MaxInt64+1)
+			So(err, ShouldNotBeNil)
 		})
 
 		Convey("Record should handle cheap one-shot gauge values", func() {
