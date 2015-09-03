@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/zvelo/ztag/vendor/github.com/gogo/protobuf/proto"
 )
 
 func TestSignalFXProto(t *testing.T) {
