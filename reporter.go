@@ -30,6 +30,17 @@ type Metric interface {
 // useful for other user-specified metric types.
 type HookedMetric interface {
 	Metric
+	// PostReportHook is intended to only be called by
+	// Reporter.Report.  Its argument should be the same as the
+	// value of a DataPoint previously returned by
+	// Metric.DataPoint; it should only be called once per such
+	// DataPoint.  If it is called with any other value, results
+	// are undefined (explicitly: PostReportHook may panic if
+	// called with an invalid value).
+	//
+	// Clients of go-signalfx should not normally call
+	// PostReportHook, unless it's doing something like
+	// implementing its own reporting functionality.
 	PostReportHook(reportedValue int64)
 }
 
@@ -277,7 +288,8 @@ func (r *Reporter) Add(dp DataPoint) {
 }
 
 // Inc adds a one-shot data point for a counter with the indicated
-// delta since the last report.
+// delta since the last report.  If delta is greater than the maximum
+// possible int64, Inc will panic.
 func (r *Reporter) Inc(metric string, dimensions map[string]string, delta uint64) {
 	if delta > math.MaxInt64 {
 		log.Panicf("counter increment %d is too large for int64", delta)
@@ -305,12 +317,15 @@ func (r *Reporter) Record(metric string, dimensions map[string]string, value int
 
 // Sample adds a one-shot data point for a cumulative counter with the
 // indicated value at this point in time.
-func (r *Reporter) Sample(metric string, dimensions map[string]string, value int64) {
+func (r *Reporter) Sample(metric string, dimensions map[string]string, value uint64) {
+	if value > math.MaxInt64 {
+		log.Panicf("counter value %d is too large for int64", value)
+	}
 	r.Add(DataPoint{
 		Metric:     metric,
 		Dimensions: dimensions,
 		Type:       CumulativeCounterType,
-		Value:      value,
+		Value:      int64(value),
 		Timestamp:  time.Now(),
 	})
 }

@@ -54,7 +54,13 @@ func (cc *CumulativeCounter) DataPoint() *DataPoint {
 
 // PostReportHook records a reported value of a CumulativeCounter.  It
 // will do the right thing if a yet-higher value has been reported in
-// the interval since DataPoint was called.
+// the interval since DataPoint was called.  Calling PostReportHook
+// with a negative value will result in a panic: counters may never
+// take negative values.
+//
+// In the normal case, PostReportHook should only be called by
+// Reporter.Report.  Its argument must always be the value of a
+// DataPoint previously returned by CumulativeCounter.DataPoint.
 func (cc *CumulativeCounter) PostReportHook(v int64) {
 	if v < 0 {
 		panic("negative cumulative counter should be impossible")

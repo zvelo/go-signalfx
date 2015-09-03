@@ -55,6 +55,10 @@ func (c *Counter) DataPoint() *DataPoint {
 // state will be consistent).  Calling PostReportHook with a negative
 // value will result in a panic: counters may never take negative
 // values.
+//
+// In the normal case, PostReportHook should only be called by
+// Reporter.Report.  Its argument must always be the value of a
+// DataPoint previously returned by Counter.DataPoint.
 func (c *Counter) PostReportHook(v int64) {
 	if v < 0 {
 		panic("negative counter should be impossible")
