@@ -2,7 +2,6 @@ package main
 
 import (
 	"sync/atomic"
-	"time"
 
 	"github.com/zvelo/go-signalfx"
 	"golang.org/x/net/context"
@@ -17,34 +16,39 @@ func main() {
 		"dim1": "val1",
 	})
 
-	gauge := reporter.NewGauge("SomeGauge", 5, map[string]string{
-		"gauge_dim0": "gauge_val0",
-		"gauge_dim1": "gauge_val1",
-	})
-	// will be reported on Metric "SomeGauge" with integer value 5
+	gaugeVal := 5
+	gauge := signalfx.WrapGauge(
+		"SomeGauge",
+		map[string]string{
+			"gauge_dim0": "gauge_val0",
+			"gauge_dim1": "gauge_val1",
+		},
+		signalfx.Value(&gaugeVal),
+	)
+	reporter.Track(gauge)
+	// would be reported on Metric "SomeGauge" with integer value 5
 
-	// the timestamp defaults to the time the datapoint was created
-	// do this to change it to something specific
-	gauge.SetTime(time.Now())
-
-	gauge.Set(9)
-	// will now be reported with integer value 9
+	gaugeVal = 9
+	// would now be reported with integer value 9
 
 	f := signalfx.GetterFunc(func() (interface{}, error) {
 		return 5, nil
 	})
-	reporter.NewGauge("GetterFunc", f, nil)
-	// will be reported on Metric "SomeIncrementer" with integer value 5
+	gauge2 := signalfx.WrapGauge("GetterFunc", nil, f)
+	reporter.Track(gauge2)
+	// will be reported on Metric "GetterFunc" with integer value 5
 
 	cval := 5
-	counter := reporter.NewCounter("SomeCounter", signalfx.Value(&cval), nil)
+	counter := signalfx.WrapGauge("SomeCounter", nil, signalfx.Value(&cval))
 	reporter.AddPreReportCallback(func() {
 		// add 1 to cval just before it is reported
 		cval++
 	})
+	reporter.Track(counter)
 	// "SomeCounter" will be reported with value 6
 
-	i, iDP := reporter.NewInt64("SomeInt64", nil)
+	i := signalfx.NewInt64(0)
+	iMetric := signalfx.WrapCounter("SomeInt64", nil, i)
 	i.Set(7)
 	atomic.AddInt64((*int64)(i), 2)
 	i.Inc(1)
@@ -64,6 +68,6 @@ func main() {
 
 	reporter.Report(context.Background())
 
-	reporter.RemoveDataPoint(gauge, iDP, counter)
+	reporter.Untrack(gauge, iMetric, counter)
 	reporter.RemoveBucket(bucket)
 }

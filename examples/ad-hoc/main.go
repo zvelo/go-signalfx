@@ -25,25 +25,31 @@ func main() {
 		"process":  "ad-hoc",
 		"hostname": hostname,
 	})
+	reporter.SetPrefix("example-")
 
 	// a gauge is a point-in-time value; it can positive or negative
 	gaugeWalker := newRandomWalker(0, 256)
 	gauge := signalfx.NewInt64(0)
-	g := reporter.NewGauge("test-gauge", gauge,
+	g := signalfx.WrapGauge(
+		"test-gauge",
 		map[string]string{
 			"hostname": hostname,
 			"process":  "ad-hoc",
-		})
-	_ = g
+		},
+		gauge,
+	)
+	reporter.Track(g)
 	cancelFunc := reporter.RunInBackground(time.Second)
 
 	// a cumulative counter is a good choice to wrap an internal value
 	var requestCount = signalfx.Uint64(0)
-	reporter.NewCumulative("test-cumulative-counter",
-		&requestCount,
+	reporter.Track(signalfx.WrapCumulativeCounter(
+		"test-cumulative-counter",
 		map[string]string{
 			"hostname": hostname,
-		})
+		},
+		&requestCount,
+	))
 
 	// a counter is a good choice for a value we want to create, then report
 
@@ -58,7 +64,7 @@ func main() {
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "failed to generate random increment:", err)
 			} else {
-				reporter.Inc("test-counter", map[string]string{"hostname": hostname}, inc.Int64())
+				reporter.Inc("test-counter", map[string]string{"hostname": hostname}, inc.Uint64())
 				inc.Add(inc, big.NewInt(int64(requestCount)))
 				requestCount.Set(inc.Uint64())
 			}
