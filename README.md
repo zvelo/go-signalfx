@@ -6,77 +6,93 @@ Provides a simple way to send DataPoints to SignalFx
 
 Fully documented via [godoc](https://godoc.org/github.com/zvelo/go-signalfx).
 
-1. Create a `Config` object. If `$SFX_API_TOKEN` is set in the environment, it will be used within the `Config`. Other default values are generally acceptable for most uses.
+## Changes
+
+This release greatly changes the API.  It cleanly separates metrics
+and their data points; this change also extends to ownership semantics
+and goroutine cleanliness.
+
+### Separation of single data points and metric time series
+
+Added `Reporter.Inc`, `Reporter.Sample` and `Reporter.Record` for
+one-shot counter, cumulative-counter and gauge values.
+
+#### Metrics
+
+Metrics are a new concept: they represent metric time series, which
+have internal state and may be converted to a data point at a
+particular point in time.
+
+Client code may define its own metrics, however, convenient-to-use
+Counter, WrappedCounter, CumulativeCounter, WrappedCumulativeCounter,
+Gauge and WrappedGauge types are provided.
+
+To track metrics over time, use `Reporter.Track` to start tracking
+them and `Reporter.Untrack` to stop tracking them.
+
+### No need for sfxproto
+
+Client code should no longer need to know about the `sfxproto`
+library, which is used internally by `signalfx`.
+
+### Argument order
+
+Function arguments should go from most general to most specific,
+e.g. from metric name, to dimensions, to value.
+
+## Simple usage
+
+1. Create a `Config` object. If `$SFX_API_TOKEN` is set in the
+   environment, it will be used within the `Config`. Other default
+   values are generally acceptable for most uses.
 
     ```go
     config := signalfx.NewConfig()
-    config.AuthToken = "<YOUR_SIGNALFX_API_TOKEN>" // if $SFX_API_TOKEN is set, this is unnecessary 
+    config.AuthToken = "<YOUR_SIGNALFX_API_TOKEN>" // if $SFX_API_TOKEN is set, this is unnecessary
     ```
 
-2. Create a `Reporter` object and set any dimensions that should be set on evey metric it sends to SignalFx.
+2. Create a `Reporter` object and set any dimensions that should be
+   set on every metric it sends to SignalFx.  Optionally, call
+   `Reporter.SetPrefix` to set a metric prefix which will be prepended
+   to every metric that reporter reports (this can be used to enforce
+   hard environment separation).
 
     ```go
-    reporter := signalfx.NewReporter(config, sfxproto.Dimensions{
+    reporter := signalfx.NewReporter(config, map[string]string{
         "dim0": "val0",
         "dim1": "val1",
     })
     ```
 
-3. Add static DataPoints as needed, the value will be sent to SignalFx later when `reporter.Report` is called. All operations on the DataPoint are goroutine safe.
+3. Add static DataPoints as needed, the value will be sent to SignalFx
+   later when `reporter.Report` is called. All operations on the
+   DataPoint are goroutine safe.
 
     ```go
-    gauge := reporter.NewGauge("SomeGauge", 5, sfxproto.Dimensions{
-        "gauge_dim0": "gauge_val0",
-        "gauge_dim1": "gauge_val1",
-    })
+    reporter.Record(
+                     "SomeGauge",
+                     sfxproto.Dimensions{
+                       "gauge_dim0": "gauge_val0",
+                       "gauge_dim1": "gauge_val1",
+                     },
+                     5,
+                   )
     // will be reported on Metric "SomeGauge" with integer value 5
-
-    // the timestamp defaults to the time the datapoint was created
-    // do this to change it to something specific
-    gauge.SetTime(time.Now())
     ```
 
-4. Even the value can even be changed before reporting.
+5. To track a metric over time, use a Metric:
 
     ```go
-    gauge.Set(9)
-    // will now be reported with integer value 9
+    counter := NewCounter("counter-metric-name", nil, 0)
+    reporter.Track(counter)
+    ⋮
+    counter.Inc(1)
+    ⋮
+    counter.Inc(3)
+    Reporter.Report(…) // will report a counter value of 4
     ```
 
-5. Sometimes it's necessary that a DataPoint retrieve the value at the time of reporting, not when it is created. This can be done by using the `signalfx.Getter` interface.
-
-    f := signalfx.GetterFunc(func() (interface{}, error) {
-        return 5, nil
-    })
-    reporter.NewGauge("GetterFunc", f, nil)
-    // will be reported on Metric "SomeIncrementer" with integer value 5
-
-6. `signalfx.Value` also implements the Getter interface and can wrap any kind of `int`, `float`, `string`, `nil` or pointer to those.
-   It's most useful with pointers though as the value of the pointer at the time of the report is what is sent.
-   It is important to note that **changing the value of a pointer should only be done in a `PreReportCallback`**.
-
-    ```go
-    cval := 5
-    counter := reporter.NewCounter("SomeCounter", signalfx.Value(&cval), nil)
-    reporter.AddPreReportCallback(func() {
-        // add 1 to cval just before it is reported
-        cval++
-    })
-    // "SomeCounter" will be reported with value 6
-    ```
-
-7. `Int32`, `Int64`, `Uint32` and `Uint64` are also provided to wrap values as Getters in a goroutine safe way. Methods exist to create each of them as `Counter` and `CumulativeCounter`.
-
-    ```go
-    i, iDP := reporter.NewInt64("SomeInt64", nil)
-    i.Set(7)
-    atomic.AddInt64((*int64)(i), 2)
-    i.Inc(1)
-    i.Inc(5)
-    // will be reported on Metric "SomeInt64" with integer value 15
-    ```
-
-8. `Bucket` is also provided to help with reporting multiple aspects of a Metric simultaneously. All operations on `Bucket` are goroutine safe.
+6. `Bucket` is also provided to help with reporting multiple aspects of a Metric simultaneously. All operations on `Bucket` are goroutine safe.
 
     ```go
     bucket := reporter.NewBucket("SomeBucket", nil)
@@ -91,15 +107,8 @@ Fully documented via [godoc](https://godoc.org/github.com/zvelo/go-signalfx).
     // Min and Max are reset each time bucket is reported
     ```
 
-9. When ready to send the DataPoints to SignalFx, just `Report` them.
+7. When ready to send the DataPoints to SignalFx, just `Report` them.
 
     ```go
     reporter.Report(context.Background())
-    ```
-
-10. `Report` can be run multiple times but does not stop tracking DataPoints after it is run. If you need to stop sending a DataPoint, it must be removed manually.
-
-    ```go
-    reporter.RemoveDataPoint(gauge, iDP, counter)
-    reporter.RemoveBucket(bucket)
     ```

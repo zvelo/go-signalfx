@@ -3,19 +3,17 @@ package signalfx
 import (
 	"runtime"
 	"time"
-
-	"github.com/zvelo/go-signalfx/sfxproto"
 )
 
 // GoMetrics gathers and reports generally useful go system stats for the reporter
 type GoMetrics struct {
-	datapoints *DataPoints
-	reporter   *Reporter
+	metrics  []Metric
+	reporter *Reporter
 }
 
 // NewGoMetrics registers the reporter to report go system metrics
 func NewGoMetrics(reporter *Reporter) *GoMetrics {
-	dims := sfxproto.Dimensions{
+	dims := map[string]string{
 		"instance": "global_stats",
 		"stattype": "golang_sys",
 	}
@@ -26,37 +24,78 @@ func NewGoMetrics(reporter *Reporter) *GoMetrics {
 		reporter: reporter,
 	}
 
-	ret.datapoints = NewDataPoints(30).
-		Add(reporter.NewGauge("Alloc", Value(&mstat.Alloc), dims)).
-		Add(reporter.NewCumulative("TotalAlloc", Value(&mstat.TotalAlloc), dims)).
-		Add(reporter.NewGauge("Sys", Value(&mstat.Sys), dims)).
-		Add(reporter.NewCumulative("Lookups", Value(&mstat.Lookups), dims)).
-		Add(reporter.NewCumulative("Mallocs", Value(&mstat.Mallocs), dims)).
-		Add(reporter.NewCumulative("Frees", Value(&mstat.Frees), dims)).
-		Add(reporter.NewGauge("HeapAlloc", Value(&mstat.HeapAlloc), dims)).
-		Add(reporter.NewGauge("HeapSys", Value(&mstat.HeapSys), dims)).
-		Add(reporter.NewGauge("HeapIdle", Value(&mstat.HeapIdle), dims)).
-		Add(reporter.NewGauge("HeapInuse", Value(&mstat.HeapInuse), dims)).
-		Add(reporter.NewGauge("HeapReleased", Value(&mstat.HeapReleased), dims)).
-		Add(reporter.NewGauge("HeapObjects", Value(&mstat.HeapObjects), dims)).
-		Add(reporter.NewGauge("StackInuse", Value(&mstat.StackInuse), dims)).
-		Add(reporter.NewGauge("StackSys", Value(&mstat.StackSys), dims)).
-		Add(reporter.NewGauge("MSpanInuse", Value(&mstat.MSpanInuse), dims)).
-		Add(reporter.NewGauge("MSpanSys", Value(&mstat.MSpanSys), dims)).
-		Add(reporter.NewGauge("MCacheInuse", Value(&mstat.MCacheInuse), dims)).
-		Add(reporter.NewGauge("MCacheSys", Value(&mstat.MCacheSys), dims)).
-		Add(reporter.NewGauge("BuckHashSys", Value(&mstat.BuckHashSys), dims)).
-		Add(reporter.NewGauge("GCSys", Value(&mstat.GCSys), dims)).
-		Add(reporter.NewGauge("OtherSys", Value(&mstat.OtherSys), dims)).
-		Add(reporter.NewGauge("NextGC", Value(&mstat.NextGC), dims)).
-		Add(reporter.NewGauge("LastGC", Value(&mstat.LastGC), dims)).
-		Add(reporter.NewCumulative("PauseTotalNs", Value(&mstat.PauseTotalNs), dims)).
-		Add(reporter.NewGauge("NumGC", Value(&mstat.NumGC), dims)).
-		Add(reporter.NewGauge("GOMAXPROCS", GetterFunc(func() (interface{}, error) { return runtime.GOMAXPROCS(0), nil }), dims)).
-		Add(reporter.NewGauge("process.uptime.ns", GetterFunc(func() (interface{}, error) { return time.Now().Sub(start).Nanoseconds(), nil }), dims)).
-		Add(reporter.NewGauge("num_cpu", GetterFunc(func() (interface{}, error) { return runtime.NumCPU(), nil }), dims)).
-		Add(reporter.NewCumulative("num_cgo_call", GetterFunc(func() (interface{}, error) { return runtime.NumCgoCall(), nil }), dims)).
-		Add(reporter.NewGauge("num_goroutine", GetterFunc(func() (interface{}, error) { return runtime.NumGoroutine(), nil }), dims))
+	ret.metrics = []Metric{
+		WrapGauge("Alloc", dims, Value(&mstat.Alloc)),
+		WrapCumulativeCounter(
+			"TotalAlloc",
+			dims,
+			Value(&mstat.TotalAlloc),
+		),
+		WrapGauge("Sys", dims, Value(&mstat.Sys)),
+		WrapCumulativeCounter("Lookups", dims, Value(&mstat.Lookups)),
+		WrapCumulativeCounter("Mallocs", dims, Value(&mstat.Mallocs)),
+		WrapCumulativeCounter("Frees", dims, Value(&mstat.Frees)),
+		WrapGauge("HeapAlloc", dims, Value(&mstat.HeapAlloc)),
+		WrapGauge("HeapSys", dims, Value(&mstat.HeapSys)),
+		WrapGauge("HeapIdle", dims, Value(&mstat.HeapIdle)),
+		WrapGauge("HeapInuse", dims, Value(&mstat.HeapInuse)),
+		WrapGauge("HeapReleased", dims, Value(&mstat.HeapReleased)),
+		WrapGauge("HeapObjects", dims, Value(&mstat.HeapObjects)),
+		WrapGauge("StackInuse", dims, Value(&mstat.StackInuse)),
+		WrapGauge("StackSys", dims, Value(&mstat.StackSys)),
+		WrapGauge("MSpanInuse", dims, Value(&mstat.MSpanInuse)),
+		WrapGauge("MSpanSys", dims, Value(&mstat.MSpanSys)),
+		WrapGauge("MCacheInuse", dims, Value(&mstat.MCacheInuse)),
+		WrapGauge("MCacheSys", dims, Value(&mstat.MCacheSys)),
+		WrapGauge("BuckHashSys", dims, Value(&mstat.BuckHashSys)),
+		WrapGauge("GCSys", dims, Value(&mstat.GCSys)),
+		WrapGauge("OtherSys", dims, Value(&mstat.OtherSys)),
+		WrapGauge("NextGC", dims, Value(&mstat.NextGC)),
+		WrapGauge("LastGC", dims, Value(&mstat.LastGC)),
+		WrapCumulativeCounter(
+			"PauseTotalNs",
+			dims,
+			Value(&mstat.PauseTotalNs),
+		),
+		WrapGauge("NumGC", dims, Value(&mstat.NumGC)),
+
+		WrapGauge(
+			"GOMAXPROCS",
+			dims,
+			GetterFunc(func() (interface{}, error) {
+				return runtime.GOMAXPROCS(0), nil
+			}),
+		),
+		WrapGauge(
+			"process.uptime.ns",
+			dims,
+			GetterFunc(func() (interface{}, error) {
+				return time.Now().Sub(start).Nanoseconds(), nil
+			}),
+		),
+		WrapGauge(
+			"num_cpu",
+			dims,
+			GetterFunc(func() (interface{}, error) {
+				return runtime.NumCPU(), nil
+			}),
+		),
+		WrapCumulativeCounter(
+			"num_cgo_call",
+			dims,
+			GetterFunc(func() (interface{}, error) {
+				return runtime.NumCgoCall(), nil
+			}),
+		),
+		WrapGauge(
+			"num_goroutine",
+			dims,
+			GetterFunc(func() (interface{}, error) {
+				return runtime.NumGoroutine(), nil
+			}),
+		),
+	}
+	reporter.Track(ret.metrics...)
 
 	reporter.AddPreReportCallback(func() {
 		runtime.ReadMemStats(&mstat)
@@ -68,6 +107,6 @@ func NewGoMetrics(reporter *Reporter) *GoMetrics {
 // Close the metric source and will stop reporting these system stats to the
 // reporter. Implements the io.Closer interface.
 func (g *GoMetrics) Close() error {
-	g.reporter.RemoveDataPoints(g.datapoints)
+	g.reporter.Untrack(g.metrics...)
 	return nil
 }

@@ -2,7 +2,9 @@ package signalfx
 
 import (
 	"fmt"
+	"math"
 	"testing"
+	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
 	"golang.org/x/net/context"
@@ -12,7 +14,9 @@ func TestBucket(t *testing.T) {
 	Convey("Testing Bucket", t, func() {
 		b := NewBucket("test", map[string]string{"c": "3"})
 		So(b, ShouldNotBeNil)
-		So(b.DataPoints(nil).Len(), ShouldEqual, 3)
+		So(len(b.DataPoints()), ShouldEqual, 3)
+		So(b.min, ShouldEqual, math.MaxInt64)
+		So(b.max, ShouldEqual, math.MinInt64)
 
 		Convey("metric naming should be correct", func() {
 			So(b.Metric(), ShouldEqual, "test")
@@ -119,7 +123,39 @@ func TestBucket(t *testing.T) {
 			So(b.Min(), ShouldEqual, 0)
 
 			b.Add(1)
-			So(b.DataPoints(map[string]string{"a": "b"}).Len(), ShouldEqual, 5)
+			So(len(b.DataPoints()), ShouldEqual, 5)
+		})
+
+		Convey("rollup dimensions should be added", func() {
+			b.Add(1)
+			b.Add(2)
+			b.Add(3)
+
+			datapoints := b.DataPoints()
+			So(len(datapoints), ShouldEqual, 5)
+			So(datapoints[0].Dimensions["rollup"], ShouldResemble, "min")
+			So(datapoints[1].Dimensions["rollup"], ShouldResemble, "max")
+			So(datapoints[2].Dimensions["rollup"], ShouldResemble, "count")
+			So(datapoints[3].Dimensions["rollup"], ShouldResemble, "sum")
+			So(datapoints[4].Dimensions["rollup"], ShouldResemble, "sumofsquares")
+		})
+
+		Convey("bucket datapoints should be sensible", func() {
+			t := time.Now()
+			dps := b.DataPoints()
+			So(len(dps), ShouldBeGreaterThan, 0)
+			So(dps[0].Timestamp.After(t), ShouldBeTrue)
+		})
+
+		Convey("disabling datapoints should work", func() {
+			b.Disable(BucketMetricCount)
+
+			b.Add(1)
+			b.Add(2)
+			b.Add(3)
+
+			So(b.Count(), ShouldEqual, 3)
+			So(len(b.DataPoints()), ShouldEqual, 4)
 		})
 	})
 }
@@ -149,7 +185,7 @@ func ExampleBucket() {
 	if err != nil {
 		fmt.Println("Error:", err)
 	} else {
-		fmt.Println("DataPoints:", dps.Len())
+		fmt.Println("Metrics:", len(dps))
 	}
 
 	// Output:
@@ -159,5 +195,5 @@ func ExampleBucket() {
 	// Max: 9
 	// Sum: 14
 	// SumOfSquares: 106
-	// DataPoints: 5
+	// Metrics: 5
 }

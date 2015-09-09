@@ -2,16 +2,24 @@ package signalfx
 
 import "sync/atomic"
 
-// Getter is an interface that is used by DataPoint. Get must return any kind of
-// int, float, string, nil or pointer to those types. Any other type is invalid.
+// Getter is an interface that is used by DataPoint. Get must return
+// any kind of int, float, nil or pointer to those types (a nil
+// indicates an absent value).  Any other type is invalid.  It no
+// longer supports strings.
 type Getter interface {
 	Get() (interface{}, error)
+}
+
+// A Subtractor is a Getter which is also subtractable.
+type Subtractor interface {
+	Getter
+	Subtract(int64)
 }
 
 // The GetterFunc type is an adapter to allow the use of ordinary functions as
 // DataPoint Getters. If f is a function with the appropriate signature,
 // GetterFunc(f) is a Getter object that calls f. f() must return a value that
-// is any type of int, float, string, nil or pointer to those types.
+// is any type of int, float, nil or pointer to those types.
 type GetterFunc func() (interface{}, error)
 
 // Get calls f()
@@ -19,10 +27,11 @@ func (f GetterFunc) Get() (interface{}, error) {
 	return f()
 }
 
-// Value is a convenience function for making a value satisfy the Getter
-// interface. val can be any type of int, float, string, nil or pointer to those
-// types. If val is a pointer type, its value should not be changed, when in a
-// Reporter, except within a PreReportCallback, for goroutine safety.
+// Value is a convenience function for making a value satisfy the
+// Getter interface. val can be any type of int, float, nil or pointer
+// to those types. If val is a pointer type, its value should not be
+// changed, when in a Reporter, except within a PreReportCallback, for
+// goroutine safety.
 func Value(val interface{}) Getter {
 	return vg{val}
 }
@@ -68,6 +77,11 @@ func (v *Int32) Value() int32 {
 	return atomic.LoadInt32((*int32)(v))
 }
 
+// Subtract atomically subtracts delta from an Int32.
+func (v *Int32) Subtract(delta int64) {
+	atomic.AddInt32((*int32)(v), int32(-delta))
+}
+
 /************************** Int64 **************************/
 
 // Int64 satisfies the Getter interface using an atomic operation. Therefore it
@@ -99,6 +113,11 @@ func (v *Int64) Inc(delta int64) int64 {
 // Value atomically returns the value of an Int64
 func (v *Int64) Value() int64 {
 	return atomic.LoadInt64((*int64)(v))
+}
+
+// Subtract atomically subtracts delta from an Int64.
+func (v *Int64) Subtract(delta int64) {
+	atomic.AddInt64((*int64)(v), -delta)
 }
 
 /************************* Uint32 **************************/
@@ -134,6 +153,11 @@ func (v *Uint32) Value() uint32 {
 	return atomic.LoadUint32((*uint32)(v))
 }
 
+// Subtract atomically subtracts delta from a Uint32
+func (v *Uint32) Subtract(delta int64) {
+	atomic.AddUint32((*uint32)(v), uint32(-delta))
+}
+
 /************************* Uint64 **************************/
 
 // Uint64 satisfies the Getter interface using an atomic operation. Therefore it
@@ -165,4 +189,9 @@ func (v *Uint64) Inc(delta uint64) uint64 {
 // Value atomically returns the value of a Uint64
 func (v *Uint64) Value() uint64 {
 	return atomic.LoadUint64((*uint64)(v))
+}
+
+// Subtract atomically subtracts delta from a Uint32
+func (v *Uint64) Subtract(delta int64) {
+	atomic.AddUint64((*uint64)(v), uint64(-delta))
 }

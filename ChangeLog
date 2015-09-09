@@ -1,3 +1,9 @@
+2015-08-14  Bob Uhl <buhl@zvelo.com>
+
+  * Start feature "Add support for metric prefix to signalfx library"
+  https://www.pivotaltracker.com/story/show/99153876
+  https://github.com/zvelo/go-signalfx/pull/5
+
 2015-07-29  Bob Uhl <buhl@zvelo.com>
 
   * Start feature "Example code for using signalfx"

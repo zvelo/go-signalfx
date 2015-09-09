@@ -4,22 +4,41 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/zvelo/go-signalfx/sfxproto"
 )
 
-// A Bucket trakcs groups of values, reporting the min/max as gauges, and
-// count/sum/sum of squares as a cumulative counter. All operations on Buckets
-// are goroutine safe.
+const (
+	// BucketMetricCount represents the count of datapoints seen
+	BucketMetricCount = iota
+	// BucketMetricMin represents the smallest datapoint seen
+	BucketMetricMin = iota
+	// BucketMetricMax represents the largest datapoint seen
+	BucketMetricMax = iota
+	// BucketMetricSum represents the sum of all datapoints seen
+	BucketMetricSum = iota
+	// BucketMetricSumOfSquares represents the sum of squares of all datapoints seen
+	BucketMetricSumOfSquares = iota
+)
+
+// A Bucket trakcs groups of values, reporting metrics as gauges and
+// resetting each time it reports. All operations on Buckets are goroutine safe.
 type Bucket struct {
-	metric       string
-	dimensions   map[string]string
-	count        uint64
-	min          int64
-	max          int64
-	sum          int64
-	sumOfSquares int64
-	mu           sync.Mutex
+	metric             string
+	dimensions         map[string]string
+	count              uint64
+	countMetric        Counter
+	min                int64
+	minMetric          Gauge
+	max                int64
+	maxMetric          Gauge
+	sum                int64
+	sumMetric          Gauge
+	sumOfSquares       int64
+	sumOfSquaresMetric Gauge
+	mu                 sync.Mutex
+	disabledMetrics    map[int]bool
 }
 
 func (b *Bucket) lock() {
@@ -37,13 +56,24 @@ func (b *Bucket) Clone() *Bucket {
 	defer b.unlock()
 
 	return &Bucket{
-		metric:       b.metric,                                  // can't use Metric() since we already have a lock
-		dimensions:   sfxproto.Dimensions(b.dimensions).Clone(), // can't use Dimensions() since we already have a lock
-		count:        b.Count(),
-		min:          b.Min(),
-		max:          b.Max(),
-		sum:          b.Sum(),
-		sumOfSquares: b.SumOfSquares(),
+		metric:          b.metric,                                  // can't use Metric() since we already have a lock
+		dimensions:      sfxproto.Dimensions(b.dimensions).Clone(), // can't use Dimensions() since we already have a lock
+		count:           b.Count(),
+		min:             b.Min(),
+		max:             b.Max(),
+		sum:             b.Sum(),
+		sumOfSquares:    b.SumOfSquares(),
+		disabledMetrics: b.disabledMetrics,
+	}
+}
+
+// Disable disables the given metrics for this bucket.
+// They will be collected, but not reported.
+func (b *Bucket) Disable(metrics ...int) {
+	b.lock()
+	defer b.unlock()
+	for _, metric := range metrics {
+		b.disabledMetrics[metric] = true
 	}
 }
 
@@ -176,8 +206,11 @@ func (b *Bucket) SumOfSquares() int64 {
 // not change for the duration of the operation.
 func NewBucket(metric string, dimensions map[string]string) *Bucket {
 	return &Bucket{
-		metric:     metric,
-		dimensions: sfxproto.Dimensions(dimensions).Clone(),
+		metric:          metric,
+		dimensions:      sfxproto.Dimensions(dimensions).Clone(),
+		min:             math.MaxInt64,
+		max:             math.MinInt64,
+		disabledMetrics: make(map[int]bool, 0),
 	}
 }
 
@@ -186,35 +219,15 @@ func NewBucket(metric string, dimensions map[string]string) *Bucket {
 func (b *Bucket) Add(val int64) {
 	// still use atomic though, so that the atomic "getters" will never read
 	// from an inconsistent state
-	count := atomic.AddUint64(&b.count, 1)
+	_ = atomic.AddUint64(&b.count, 1)
 	atomic.AddInt64(&b.sum, val)
 	atomic.AddInt64(&b.sumOfSquares, val*val)
 
-	if count == 1 {
-		if cur := b.Min(); cur == 0 {
-			if !atomic.CompareAndSwapInt64(&b.min, cur, val) {
-				b.setMin(val)
-			}
-		} else {
-			b.setMin(val)
-		}
-
-		if cur := b.Max(); cur == 0 {
-			if !atomic.CompareAndSwapInt64(&b.max, cur, val) {
-				b.setMax(val)
-			}
-		} else {
-			b.setMax(val)
-		}
-
-		return
-	}
-
-	b.setMin(val)
-	b.setMax(val)
+	b.setIfMin(val)
+	b.setIfMax(val)
 }
 
-func (b *Bucket) setMin(val int64) {
+func (b *Bucket) setIfMin(val int64) {
 	for {
 		if cur := b.Min(); cur > val || cur == math.MaxInt64 {
 			if atomic.CompareAndSwapInt64(&b.min, cur, val) {
@@ -226,7 +239,7 @@ func (b *Bucket) setMin(val int64) {
 	}
 }
 
-func (b *Bucket) setMax(val int64) {
+func (b *Bucket) setIfMax(val int64) {
 	for {
 		if cur := b.Max(); cur < val || cur == math.MinInt64 {
 			if atomic.CompareAndSwapInt64(&b.max, cur, val) {
@@ -238,85 +251,79 @@ func (b *Bucket) setMax(val int64) {
 	}
 }
 
-func (b *Bucket) dimFor(defaultDims map[string]string, rollup string) map[string]string {
+func (b *Bucket) dimFor(rollup string) map[string]string {
 	b.lock()
 	defer b.unlock()
 
-	dims := sfxproto.Dimensions(defaultDims).Append(b.dimensions)
-	dims["rollup"] = rollup
-
-	return dims
+	return sfxproto.Dimensions(map[string]string{"rollup": rollup}).Append(b.dimensions)
 }
 
-// CountDataPoint returns a DataPoint representing the Bucket's Count. Because
-// the passed in dimensions can not be locked by this method, it is important
-// that the caller ensures its state does not change for the duration of the
-// operation.
-func (b *Bucket) CountDataPoint(defaultDims map[string]string) *DataPoint {
-	dp, _ := NewCounter(b.Metric(), b.Count(), b.dimFor(defaultDims, "count"))
-	return dp
-}
-
-// SumDataPoint returns a DataPoint representing the Bucket's Sum. Because the
-// passed in dimensions can not be locked by this method, it is important that
-// the caller ensures its state does not change for the duration of the
-// operation.
-func (b *Bucket) SumDataPoint(defaultDims map[string]string) *DataPoint {
-	dp, _ := NewCounter(b.Metric(), b.Sum(), b.dimFor(defaultDims, "sum"))
-	return dp
-}
-
-// SumOfSquaresDataPoint returns a DataPoint representing the Bucket's
-// SumOfSquares. Because the passed in dimensions can not be locked by this
-// method, it is important that the caller ensures its state does not change for
-// the duration of the operation.
-func (b *Bucket) SumOfSquaresDataPoint(defaultDims map[string]string) *DataPoint {
-	dp, _ := NewCounter(b.Metric(), b.SumOfSquares(), b.dimFor(defaultDims, "sumsquare"))
-	return dp
-}
-
-// MinDataPoint returns a DataPoint representing the Bucket's Min. Note that
-// this resets the Min value. nil is returned if no items have been added to the
-// bucket since it was created or last reset. Because the passed in dimensions
-// can not be locked by this method, it is important that the caller ensures its
-// state does not change for the duration of the operation.
-func (b *Bucket) MinDataPoint(defaultDims map[string]string) *DataPoint {
+// DataPoints returns a DataPoints object with DataPoint values for
+// Count, Sum, SumOfSquares, Min and Max (if set). Note that this
+// resets all values.  If no values have been added to the bucket
+// since the last report, it returns 0 for count, sum and
+// sum-of-squares, omitting max and min.  If the count is higher than
+// may be represented in an int64, then the count will be omitted.
+func (b *Bucket) DataPoints() []DataPoint {
+	dps := make([]DataPoint, 0, 5)
+	cnt := atomic.SwapUint64(&b.count, 0)
 	min := atomic.SwapInt64(&b.min, math.MaxInt64)
-
-	if b.Count() != 0 && min != math.MaxInt64 {
-		dp, _ := NewGauge(b.Metric()+".min", min, b.dimFor(defaultDims, "min"))
-		return dp
-	}
-
-	return nil
-}
-
-// MaxDataPoint returns a DataPoint representing the Bucket's Max. Note that
-// this resets the Max value. nil is returned if no items have been added to the
-// bucket since it was created or last reset. Because the passed in dimensions
-// can not be locked by this method, it is important that the caller ensures its
-// state does not change for the duration of the operation.
-func (b *Bucket) MaxDataPoint(defaultDims map[string]string) *DataPoint {
 	max := atomic.SwapInt64(&b.max, math.MinInt64)
-
-	if b.Count() != 0 && max != math.MinInt64 {
-		dp, _ := NewGauge(b.Metric()+".max", max, b.dimFor(defaultDims, "max"))
-		return dp
+	sum := atomic.SwapInt64(&b.sum, 0)
+	sos := atomic.SwapInt64(&b.sumOfSquares, 0)
+	timestamp := time.Now()
+	if cnt != 0 {
+		if !b.disabledMetrics[BucketMetricMin] {
+			dp := DataPoint{
+				Metric:     b.metric,
+				Dimensions: b.dimFor("min"),
+				Type:       GaugeType,
+				Value:      min,
+				Timestamp:  timestamp,
+			}
+			dps = append(dps, dp)
+		}
+		if !b.disabledMetrics[BucketMetricMax] {
+			dp := DataPoint{
+				Metric:     b.metric,
+				Dimensions: b.dimFor("max"),
+				Type:       GaugeType,
+				Value:      max,
+				Timestamp:  timestamp,
+			}
+			dps = append(dps, dp)
+		}
+	}
+	if !b.disabledMetrics[BucketMetricCount] && cnt <= math.MaxInt64 {
+		dp := DataPoint{
+			Metric:     b.metric,
+			Dimensions: b.dimFor("count"),
+			Type:       CounterType,
+			Value:      int64(cnt),
+			Timestamp:  timestamp,
+		}
+		dps = append(dps, dp)
+	}
+	if !b.disabledMetrics[BucketMetricSum] {
+		dp := DataPoint{
+			Metric:     b.metric,
+			Dimensions: b.dimFor("sum"),
+			Type:       GaugeType,
+			Value:      sum,
+			Timestamp:  timestamp,
+		}
+		dps = append(dps, dp)
+	}
+	if !b.disabledMetrics[BucketMetricSumOfSquares] {
+		dp := DataPoint{
+			Metric:     b.metric,
+			Dimensions: b.dimFor("sumofsquares"),
+			Type:       GaugeType,
+			Value:      sos,
+			Timestamp:  timestamp,
+		}
+		dps = append(dps, dp)
 	}
 
-	return nil
-}
-
-// DataPoints returns a DataPoints object with DataPoint values for Count, Sum,
-// SumOfSquares, Min and Max (if set). Note that this resets both the Min and
-// Max values. Because the passed in dimensions
-// can not be locked by this method, it is important that the caller ensures its
-// state does not change for the duration of the operation.
-func (b *Bucket) DataPoints(defaultDims map[string]string) *DataPoints {
-	return NewDataPoints(5).
-		Add(b.CountDataPoint(defaultDims)).
-		Add(b.SumDataPoint(defaultDims)).
-		Add(b.SumOfSquaresDataPoint(defaultDims)).
-		Add(b.MinDataPoint(defaultDims)).
-		Add(b.MaxDataPoint(defaultDims))
+	return dps
 }
