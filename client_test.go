@@ -98,7 +98,7 @@ func TestClient(t *testing.T) {
 			mode = errStatusMode
 			err := client.Submit(context.Background(), pdps)
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, `"OK": invalid status code: 404`)
+			So(err.Error(), ShouldEqual, `"OK": invalid status code: 404 Not Found`)
 			So(err, ShouldResemble, &ErrStatus{[]byte(`"OK"`), http.StatusNotFound})
 
 			mode = errJSONMode

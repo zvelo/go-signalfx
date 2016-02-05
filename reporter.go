@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"log"
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
@@ -347,7 +347,7 @@ func (r *Reporter) RunInBackground(interval time.Duration) (cancel func()) {
 				_, err := r.Report(context.Background())
 				if err != nil &&
 					err != sfxproto.ErrMarshalNoData {
-					log.Print(err)
+					log.WithError(err).Warnln("SignalFX background reporter")
 				}
 			case <-done:
 				return
