@@ -33,7 +33,7 @@ func TestGoMetrics(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(datapoints, ShouldNotBeNil)
 
-		So(len(datapoints), ShouldGreaterThan, 0)
+		So(len(datapoints), ShouldBeGreaterThan, 0)
 
 		testDataPoint := func(dp DataPoint, t MetricType) {
 			So(dp.Type, ShouldEqual, t)
