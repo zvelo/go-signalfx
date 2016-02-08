@@ -32,7 +32,7 @@ func TestGoMetrics(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(datapoints, ShouldNotBeNil)
 		// This can vary depending on if a GC cycle has run yet.
-		So(len(datapoints), ShouldBeGreaterThan, 28)
+		So(len(datapoints), ShouldBeGreaterThanOrEqualTo, 28)
 
 		testDataPoint := func(dp DataPoint, t MetricType) {
 			So(dp.Type, ShouldEqual, t)
