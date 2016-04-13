@@ -1,3 +1,8 @@
+2016-04-13  Michael Robinson <mrobinson@zvelo.com>
+
+  * Start feature "add stable gauge to signalfx library"
+  https://www.pivotaltracker.com/story/show/117575937
+
 2015-08-14  Bob Uhl <buhl@zvelo.com>
 
   * Start feature "Add support for metric prefix to signalfx library"
