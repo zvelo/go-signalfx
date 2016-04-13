@@ -2,6 +2,7 @@
 
   * Start feature "add stable gauge to signalfx library"
   https://www.pivotaltracker.com/story/show/117575937
+  https://github.com/zvelo/go-signalfx/pull/11
 
 2015-08-14  Bob Uhl <buhl@zvelo.com>
 
