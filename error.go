@@ -1,6 +1,11 @@
 package signalfx
 
-import "fmt"
+import (
+	"fmt"
+	"net/http"
+)
+
+var _ http.Request
 
 // ErrMarshal is returned when there is an error marshaling the DataPoints
 type ErrMarshal error
@@ -22,7 +27,7 @@ type ErrStatus struct {
 }
 
 func (e ErrStatus) Error() string {
-	return fmt.Sprintf("%s: invalid status code: %d", e.Body, e.StatusCode)
+	return fmt.Sprintf("%s: invalid status code: %d %s", e.Body, e.StatusCode, http.StatusText(e.StatusCode))
 }
 
 // ErrJSON is returned when there is an error parsing the signalfx JSON

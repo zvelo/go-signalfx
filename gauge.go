@@ -80,3 +80,32 @@ func (c *WrappedGauge) DataPoint() *DataPoint {
 		Value:      value,
 	}
 }
+
+// A StableGauge is the same as a Guage, but will not report the same value
+// multiple times sequentially.
+type StableGauge struct {
+	gauge     *Gauge
+	prevValue int64
+}
+
+// NewStableGauge returns a new StableGauge with the indicated initial state.
+func NewStableGauge(metric string, dimensions map[string]string, value int64) *StableGauge {
+	return &StableGauge{gauge: NewGauge(metric, dimensions, value)}
+}
+
+// Record sets a gauge's internal state to the indicated value.
+func (g *StableGauge) Record(value int64) {
+	g.gauge.Record(value)
+}
+
+// DataPoint returns a DataPoint reflecting the StableGauge's internal state
+// at the current point in time, if it differs since the last call.
+func (g *StableGauge) DataPoint() *DataPoint {
+	dp := g.gauge.DataPoint()
+	if dp.Value == atomic.LoadInt64(&g.prevValue) {
+		// Value is the same, don't report it
+		return nil
+	}
+	atomic.StoreInt64(&g.prevValue, dp.Value)
+	return dp
+}

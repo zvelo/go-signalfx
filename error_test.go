@@ -11,7 +11,7 @@ func TestError(t *testing.T) {
 		var err error
 
 		err = ErrStatus{[]byte("body"), 404}
-		So(err.Error(), ShouldEqual, "body: invalid status code: 404")
+		So(err.Error(), ShouldEqual, "body: invalid status code: 404 Not Found")
 
 		err = ErrJSON{[]byte("body")}
 		So(err.Error(), ShouldEqual, "body")

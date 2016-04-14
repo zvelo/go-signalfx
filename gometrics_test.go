@@ -28,12 +28,11 @@ func TestGoMetrics(t *testing.T) {
 		So(reporter, ShouldNotBeNil)
 
 		gometrics := NewGoMetrics(reporter)
-
 		datapoints, err := reporter.Report(context.Background())
 		So(err, ShouldBeNil)
 		So(datapoints, ShouldNotBeNil)
-
-		So(len(datapoints), ShouldEqual, 29) // should be 29 because num_cgo_call should be 0 and ignored
+		// This can vary depending on if a GC cycle has run yet.
+		So(len(datapoints), ShouldBeGreaterThanOrEqualTo, 28)
 
 		testDataPoint := func(dp DataPoint, t MetricType) {
 			So(dp.Type, ShouldEqual, t)
