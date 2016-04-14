@@ -1,6 +1,7 @@
 package signalfx
 
 import (
+	"math"
 	"sync/atomic"
 	"time"
 )
@@ -90,7 +91,7 @@ type StableGauge struct {
 
 // NewStableGauge returns a new StableGauge with the indicated initial state.
 func NewStableGauge(metric string, dimensions map[string]string, value int64) *StableGauge {
-	return &StableGauge{gauge: NewGauge(metric, dimensions, value)}
+	return &StableGauge{gauge: NewGauge(metric, dimensions, value), prevValue: math.MaxInt64}
 }
 
 // Record sets a gauge's internal state to the indicated value.
