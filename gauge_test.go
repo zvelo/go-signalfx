@@ -69,6 +69,22 @@ func TestGauge(t *testing.T) {
 		So(gdp.Value, ShouldEqual, 8)
 		So(g.prevValue, ShouldEqual, 8)
 		So(t.Before(gdp.Timestamp), ShouldBeTrue)
+
+		Convey("reports a 0 if it is the first report", func() {
+			g := NewStableGauge("stable-gauge", nil, 0)
+			So(g, ShouldNotBeNil)
+			So(g.gauge.metric, ShouldEqual, "stable-gauge")
+			So(g.gauge.dimensions, ShouldBeNil)
+			So(g.gauge.value, ShouldEqual, 0)
+
+			g.Record(0)
+			gdp := g.DataPoint()
+			So(gdp, ShouldNotBeNil)
+			So(gdp.Metric, ShouldEqual, "stable-gauge")
+			So(gdp.Dimensions, ShouldBeNil)
+			So(gdp.Value, ShouldEqual, 0)
+			So(g.prevValue, ShouldEqual, 0)
+		})
 	})
 	Convey("Broken wrapped gauges break cleanly", t, func() {
 		g := WrapGauge("broken", nil, GetterFunc(func() (interface{}, error) {
