@@ -15,7 +15,7 @@ func TestGoMetrics(t *testing.T) {
 
 	Convey("Testing GoMetrics", t, func() {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(`"OK"`))
+			_, _ = w.Write([]byte(`"OK"`))
 		}))
 		defer ts.Close()
 
@@ -27,7 +27,7 @@ func TestGoMetrics(t *testing.T) {
 		reporter := NewReporter(config, nil)
 		So(reporter, ShouldNotBeNil)
 
-		gometrics := NewGoMetrics(reporter)
+		gometrics := NewGoMetrics(reporter, map[string]string{"system": "test"})
 		datapoints, err := reporter.Report(context.Background())
 		So(err, ShouldBeNil)
 		So(datapoints, ShouldNotBeNil)
@@ -37,50 +37,41 @@ func TestGoMetrics(t *testing.T) {
 		testDataPoint := func(dp DataPoint, t MetricType) {
 			So(dp.Type, ShouldEqual, t)
 			So(dp.Timestamp.Before(time.Now()), ShouldBeTrue)
-			So(len(dp.Dimensions), ShouldEqual, 2)
 
-			for key, value := range dp.Dimensions {
-				switch key {
-				case "instance":
-					So(value, ShouldEqual, "global_stats")
-				case "stattype":
-					So(value, ShouldEqual, "golang_sys")
-				default:
-					So(value, ShouldEqual, forceFail)
-				}
-			}
+			So(len(dp.Dimensions), ShouldEqual, 1)
+			So(dp.Dimensions["system"], ShouldEqual, "test")
 
 			So(dp.Value, ShouldBeGreaterThanOrEqualTo, 0)
 		}
 
 		for _, dp := range datapoints {
 			switch dp.Metric {
-			case "Alloc",
-				"Sys",
-				"HeapAlloc",
-				"HeapSys",
-				"HeapIdle",
-				"HeapInuse",
-				"HeapReleased",
-				"HeapObjects",
-				"StackInuse",
-				"StackSys",
-				"MSpanInuse",
-				"MSpanSys",
-				"MCacheInuse",
-				"MCacheSys",
-				"BuckHashSys",
-				"GCSys",
-				"OtherSys",
-				"NextGC",
-				"LastGC",
-				"NumGC",
-				"GOMAXPROCS",
-				"process.uptime.ns",
-				"num_cpu",
-				"num_goroutine":
+			case "go-metric-alloc",
+				"go-metric-sys",
+				"go-metric-heap-alloc",
+				"go-metric-heap-sys",
+				"go-metric-heap-idle",
+				"go-metric-heap-in-use",
+				"go-metric-heap-released",
+				"go-metric-heap-objects",
+				"go-metric-stack-in-use",
+				"go-metric-stack-sys",
+				"go-metric-mspan-in-use",
+				"go-metric-mspan-sys",
+				"go-metric-mcache-in-use",
+				"go-metric-mcache-sys",
+				"go-metric-buck-hash-sys",
+				"go-metric-gc-sys",
+				"go-metric-other-sys",
+				"go-metric-next-gc",
+				"go-metric-last-gc",
+				"go-metric-num-gc",
+				"go-metric-gomaxprocs",
+				"go-metric-uptime-ns",
+				"go-metric-num-cpu",
+				"go-metric-num-goroutine":
 				testDataPoint(dp, GaugeType)
-			case "TotalAlloc", "Lookups", "Mallocs", "Frees", "PauseTotalNs", "num_cgo_call":
+			case "go-metric-total-alloc", "go-metric-lookups", "go-metric-mallocs", "go-metric-frees", "go-metric-pause-total-ns", "go-metric-num-cgo-call":
 				testDataPoint(dp, CumulativeCounterType)
 			default:
 				So(dp.Metric, ShouldEqual, forceFail)
