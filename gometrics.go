@@ -11,13 +11,9 @@ type GoMetrics struct {
 	reporter *Reporter
 }
 
-// NewGoMetrics registers the reporter to report go system metrics
-func NewGoMetrics(reporter *Reporter) *GoMetrics {
-	dims := map[string]string{
-		"instance": "global_stats",
-		"stattype": "golang_sys",
-	}
-
+// NewGoMetrics registers the reporter to report go system metrics.
+// You should provide enough dims to differentiate this set of metrics.
+func NewGoMetrics(reporter *Reporter, dims map[string]string) *GoMetrics {
 	start := time.Now()
 	mstat := runtime.MemStats{}
 	ret := &GoMetrics{
@@ -25,70 +21,70 @@ func NewGoMetrics(reporter *Reporter) *GoMetrics {
 	}
 
 	ret.metrics = []Metric{
-		WrapGauge("Alloc", dims, Value(&mstat.Alloc)),
+		WrapGauge("go-metric-alloc", dims, Value(&mstat.Alloc)),
 		WrapCumulativeCounter(
-			"TotalAlloc",
+			"go-metric-total-alloc",
 			dims,
 			Value(&mstat.TotalAlloc),
 		),
-		WrapGauge("Sys", dims, Value(&mstat.Sys)),
-		WrapCumulativeCounter("Lookups", dims, Value(&mstat.Lookups)),
-		WrapCumulativeCounter("Mallocs", dims, Value(&mstat.Mallocs)),
-		WrapCumulativeCounter("Frees", dims, Value(&mstat.Frees)),
-		WrapGauge("HeapAlloc", dims, Value(&mstat.HeapAlloc)),
-		WrapGauge("HeapSys", dims, Value(&mstat.HeapSys)),
-		WrapGauge("HeapIdle", dims, Value(&mstat.HeapIdle)),
-		WrapGauge("HeapInuse", dims, Value(&mstat.HeapInuse)),
-		WrapGauge("HeapReleased", dims, Value(&mstat.HeapReleased)),
-		WrapGauge("HeapObjects", dims, Value(&mstat.HeapObjects)),
-		WrapGauge("StackInuse", dims, Value(&mstat.StackInuse)),
-		WrapGauge("StackSys", dims, Value(&mstat.StackSys)),
-		WrapGauge("MSpanInuse", dims, Value(&mstat.MSpanInuse)),
-		WrapGauge("MSpanSys", dims, Value(&mstat.MSpanSys)),
-		WrapGauge("MCacheInuse", dims, Value(&mstat.MCacheInuse)),
-		WrapGauge("MCacheSys", dims, Value(&mstat.MCacheSys)),
-		WrapGauge("BuckHashSys", dims, Value(&mstat.BuckHashSys)),
-		WrapGauge("GCSys", dims, Value(&mstat.GCSys)),
-		WrapGauge("OtherSys", dims, Value(&mstat.OtherSys)),
-		WrapGauge("NextGC", dims, Value(&mstat.NextGC)),
-		WrapGauge("LastGC", dims, Value(&mstat.LastGC)),
+		WrapGauge("go-metric-sys", dims, Value(&mstat.Sys)),
+		WrapCumulativeCounter("go-metric-lookups", dims, Value(&mstat.Lookups)),
+		WrapCumulativeCounter("go-metric-mallocs", dims, Value(&mstat.Mallocs)),
+		WrapCumulativeCounter("go-metric-frees", dims, Value(&mstat.Frees)),
+		WrapGauge("go-metric-heap-alloc", dims, Value(&mstat.HeapAlloc)),
+		WrapGauge("go-metric-heap-sys", dims, Value(&mstat.HeapSys)),
+		WrapGauge("go-metric-heap-idle", dims, Value(&mstat.HeapIdle)),
+		WrapGauge("go-metric-heap-in-use", dims, Value(&mstat.HeapInuse)),
+		WrapGauge("go-metric-heap-released", dims, Value(&mstat.HeapReleased)),
+		WrapGauge("go-metric-heap-objects", dims, Value(&mstat.HeapObjects)),
+		WrapGauge("go-metric-stack-in-use", dims, Value(&mstat.StackInuse)),
+		WrapGauge("go-metric-stack-sys", dims, Value(&mstat.StackSys)),
+		WrapGauge("go-metric-mspan-in-use", dims, Value(&mstat.MSpanInuse)),
+		WrapGauge("go-metric-mspan-sys", dims, Value(&mstat.MSpanSys)),
+		WrapGauge("go-metric-mcache-in-use", dims, Value(&mstat.MCacheInuse)),
+		WrapGauge("go-metric-mcache-sys", dims, Value(&mstat.MCacheSys)),
+		WrapGauge("go-metric-buck-hash-sys", dims, Value(&mstat.BuckHashSys)),
+		WrapGauge("go-metric-gc-sys", dims, Value(&mstat.GCSys)),
+		WrapGauge("go-metric-other-sys", dims, Value(&mstat.OtherSys)),
+		WrapGauge("go-metric-next-gc", dims, Value(&mstat.NextGC)),
+		WrapGauge("go-metric-last-gc", dims, Value(&mstat.LastGC)),
 		WrapCumulativeCounter(
-			"PauseTotalNs",
+			"go-metric-pause-total-ns",
 			dims,
 			Value(&mstat.PauseTotalNs),
 		),
-		WrapGauge("NumGC", dims, Value(&mstat.NumGC)),
+		WrapGauge("go-metric-num-gc", dims, Value(&mstat.NumGC)),
 
 		WrapGauge(
-			"GOMAXPROCS",
+			"go-metric-gomaxprocs",
 			dims,
 			GetterFunc(func() (interface{}, error) {
 				return runtime.GOMAXPROCS(0), nil
 			}),
 		),
 		WrapGauge(
-			"process.uptime.ns",
+			"go-metric-uptime-ns",
 			dims,
 			GetterFunc(func() (interface{}, error) {
-				return time.Now().Sub(start).Nanoseconds(), nil
+				return time.Since(start).Nanoseconds(), nil
 			}),
 		),
 		WrapGauge(
-			"num_cpu",
+			"go-metric-num-cpu",
 			dims,
 			GetterFunc(func() (interface{}, error) {
 				return runtime.NumCPU(), nil
 			}),
 		),
 		WrapCumulativeCounter(
-			"num_cgo_call",
+			"go-metric-num-cgo-call",
 			dims,
 			GetterFunc(func() (interface{}, error) {
 				return runtime.NumCgoCall(), nil
 			}),
 		),
 		WrapGauge(
-			"num_goroutine",
+			"go-metric-num-goroutine",
 			dims,
 			GetterFunc(func() (interface{}, error) {
 				return runtime.NumGoroutine(), nil
