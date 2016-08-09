@@ -2,6 +2,7 @@
 
   * Start feature "update go-signalfx logging"
   https://www.pivotaltracker.com/story/show/127945791
+  https://github.com/zvelo/go-signalfx/pull/13
 
 2016-04-13  Michael Robinson <mrobinson@zvelo.com>
 
