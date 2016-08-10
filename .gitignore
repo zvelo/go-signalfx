@@ -1,3 +1,4 @@
 /.acc.out
 /examples/readme/readme
 /.coveralls-stamp
+/sfxproto/signalfx.pb.go.bak

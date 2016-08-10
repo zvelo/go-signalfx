@@ -3,7 +3,7 @@ package main
 import (
 	"sync/atomic"
 
-	"github.com/zvelo/go-signalfx"
+	"zvelo.io/go-signalfx"
 	"golang.org/x/net/context"
 )
 

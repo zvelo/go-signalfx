@@ -128,7 +128,7 @@ func (cc *WrappedCumulativeCounter) DataPoint() *DataPoint {
 		Timestamp:  time.Now(),
 		Type:       CumulativeCounterType,
 		Dimensions: cc.dimensions,
-		Value:      int64(value),
+		Value:      value,
 	}
 }
 

@@ -2,14 +2,13 @@ package signalfx
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-
-	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
+	"zvelo.io/go-signalfx/sfxproto"
 )
 
 // A Metric represents a producer of datapoints (i.e., a metric time
@@ -63,6 +62,7 @@ type Reporter struct {
 	mu                 sync.Mutex
 	oneShots           []DataPoint
 	metricPrefix       string
+	logger             io.Writer
 }
 
 // NewReporter returns a new Reporter object. Any dimensions supplied will be
@@ -75,6 +75,7 @@ func NewReporter(config *Config,
 		defaultDimensions: defaultDimensions,
 		buckets:           map[*Bucket]interface{}{},
 		metrics:           map[Metric]struct{}{},
+		logger:            config.Logger,
 	}
 }
 
@@ -216,9 +217,7 @@ func (r *Reporter) Report(ctx context.Context) ([]DataPoint, error) {
 	ret := make([]DataPoint, 0, retLen)
 
 	for _, f := range r.datapointCallbacks {
-		for _, dp := range f() {
-			ret = append(ret, dp)
-		}
+		ret = append(ret, f()...)
 	}
 
 	for b := range r.buckets {
@@ -226,9 +225,7 @@ func (r *Reporter) Report(ctx context.Context) ([]DataPoint, error) {
 	}
 
 	// append all of the one-shots
-	for _, dp := range r.oneShots {
-		ret = append(ret, dp)
-	}
+	ret = append(ret, r.oneShots...)
 
 	var hookedMetrics []struct {
 		m HookedMetric
@@ -347,7 +344,9 @@ func (r *Reporter) RunInBackground(interval time.Duration) (cancel func()) {
 				_, err := r.Report(context.Background())
 				if err != nil &&
 					err != sfxproto.ErrMarshalNoData {
-					log.WithError(err).Warnln("SignalFX background reporter")
+					if r.logger != nil {
+						fmt.Fprintf(r.logger, "failed to report stats to SignalFX: %v", err)
+					}
 				}
 			case <-done:
 				return

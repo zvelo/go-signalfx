@@ -3,12 +3,12 @@ package signalfx
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 
-	"github.com/zvelo/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
+	"zvelo.io/go-signalfx/sfxproto"
 )
 
 const (
@@ -70,7 +70,9 @@ func (c *Client) Submit(ctx context.Context, pdps *sfxproto.DataPoints) error {
 			tr.CancelRequest(req)
 			<-done // wait for the request to be canceled
 		} else {
-			log.Printf("[ERR] tried to cancel non-cancellable transport %T", tr)
+			if c.config.Logger != nil {
+				fmt.Fprintf(c.config.Logger, "tried to cancel non-cancellable transport %T", tr)
+			}
 		}
 		return ErrContext(ctx.Err())
 	case <-done:

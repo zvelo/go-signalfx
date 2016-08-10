@@ -46,6 +46,6 @@ clean:
 
 sfxproto/signalfx.pb.go: $(PROTO_FILES)
 	protoc --go_out=. $(PROTO_FILES)
-	@sed -i '/^func.*DataPoint).*String() string/d' sfxproto/signalfx.pb.go
+	@sed -i.bak '/^func.*DataPoint).*String() string/d' sfxproto/signalfx.pb.go
 
 .PHONY: all lint test coverage coveralls clean
