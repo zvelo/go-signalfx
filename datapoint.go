@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zvelo/go-signalfx/sfxproto"
+	"zvelo.io/go-signalfx/sfxproto"
 )
 
 var (
