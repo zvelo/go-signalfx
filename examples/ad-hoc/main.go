@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zvelo/go-signalfx"
+	"zvelo.io/go-signalfx"
 )
 
 func main() {

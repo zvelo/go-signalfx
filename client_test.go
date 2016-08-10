@@ -8,7 +8,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/zvelo/go-signalfx/sfxproto"
+	"zvelo.io/go-signalfx/sfxproto"
 	"golang.org/x/net/context"
 )
 

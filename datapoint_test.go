@@ -6,7 +6,7 @@ import (
 	"time"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/zvelo/go-signalfx/sfxproto"
+	"zvelo.io/go-signalfx/sfxproto"
 )
 
 func TestDataPoint(t *testing.T) {

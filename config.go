@@ -2,6 +2,7 @@ package signalfx
 
 import (
 	"crypto/tls"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -37,6 +38,7 @@ type Config struct {
 	AuthToken             string
 	UserAgent             string
 	TLSInsecureSkipVerify bool
+	Logger                io.Writer
 }
 
 // Clone makes a deep copy of a Config
